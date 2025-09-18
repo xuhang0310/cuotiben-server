@@ -117,7 +117,8 @@ PORT=8000
 - `GET /api/statistics/` - 获取统计数据
 
 #### OCR功能
-- `POST /api/ocr/recognize` - OCR识别
+- `POST /api/ocr/recognize` - OCR识别（上传图片文件）
+- `POST /api/ocr/recognize-from-url` - OCR识别（网络图片URL）
 - `POST /api/ocr/save-question` - 保存识别结果
 
 #### 设置管理

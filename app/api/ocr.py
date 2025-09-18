@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
+import requests
+import os
+import uuid
 from app.database.session import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.question import Question
-from app.utils.ocr import mock_ocr_recognize
+from app.utils.ocr import paddle_ocr_recognize
 
 router = APIRouter()
 
@@ -25,7 +28,7 @@ async def ocr_recognize(
     image_data = await image.read()
     
     # 调用OCR识别函数
-    recognized_text = mock_ocr_recognize(image_data)
+    recognized_text = paddle_ocr_recognize(image_data)
     
     return {
         "success": True,
@@ -33,6 +36,74 @@ async def ocr_recognize(
             "recognized_text": recognized_text
         }
     }
+
+@router.post("/recognize-from-url")
+async def ocr_recognize_from_url(
+    image_url: str = Form(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # 验证URL格式
+    if not image_url.startswith(("http://", "https://")):
+        raise HTTPException(
+            status_code=400,
+            detail="请提供有效的图片URL"
+        )
+    
+    # 初始化临时文件路径变量
+    temp_filepath = None
+    
+    try:
+        # 下载网络图片
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        
+        # 检查内容类型
+        content_type = response.headers.get('content-type', '')
+        if not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400,
+                detail="URL指向的不是有效的图片文件"
+            )
+        
+        # 生成临时文件路径
+        temp_filename = f"temp_{uuid.uuid4().hex}.jpg"
+        temp_filepath = os.path.join("/tmp", temp_filename)
+        
+        # 保存图片到临时文件
+        with open(temp_filepath, "wb") as f:
+            f.write(response.content)
+        
+        # 读取图片数据
+        image_data = response.content
+        
+        # 调用OCR识别函数
+        recognized_text = paddle_ocr_recognize(image_data)
+        
+        return {
+            "success": True,
+            "data": {
+                "recognized_text": recognized_text
+            }
+        }
+        
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"下载图片失败: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR识别过程中发生错误: {str(e)}"
+        )
+    finally:
+        # 确保删除临时文件
+        if temp_filepath and os.path.exists(temp_filepath):
+            try:
+                os.remove(temp_filepath)
+            except:
+                pass  # 忽略删除文件时的错误
 
 @router.post("/save-question")
 def save_ocr_question(
