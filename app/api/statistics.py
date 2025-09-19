@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.question import Question
 from app.models.practice_record import PracticeRecord
 from app.models.subject import Subject
+from app.schemas.response import SuccessResponse
 
 router = APIRouter()
 
@@ -136,22 +137,19 @@ def get_statistics(
     monthly_stats = []
     # 在实际项目中，这里需要根据时间范围进行更复杂的查询
     
-    return {
-        "success": True,
-        "data": {
-            "basic_stats": {
-                "total_questions": total_questions,
-                "total_practiced": total_practiced,
-                "total_attempts": total_attempts,
-                "correct_attempts": correct_attempts,
-                "accuracy": accuracy,
-                "total_time": total_time,
-                "average_time": average_time
-            },
-            "subject_stats": subject_stats,
-            "difficulty_stats": difficulty_stats,
-            "daily_stats": daily_stats,
-            "weekly_stats": weekly_stats,
-            "monthly_stats": monthly_stats
-        }
-    }
+    return SuccessResponse(data={
+        "basic_stats": {
+            "total_questions": total_questions,
+            "total_practiced": total_practiced,
+            "total_attempts": total_attempts,
+            "correct_attempts": correct_attempts,
+            "accuracy": accuracy,
+            "total_time": total_time,
+            "average_time": average_time
+        },
+        "subject_stats": subject_stats,
+        "difficulty_stats": difficulty_stats,
+        "daily_stats": daily_stats,
+        "weekly_stats": weekly_stats,
+        "monthly_stats": monthly_stats
+    })

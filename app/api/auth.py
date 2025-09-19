@@ -5,8 +5,11 @@ from app.database.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, Token
 from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.dependencies import get_current_user
+from app.schemas.response import SuccessResponse
 
 router = APIRouter()
+
 
 @router.post("/register", response_model=Token)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -55,3 +58,15 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     # 生成访问令牌
     access_token = create_access_token(data={"sub": str(db_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/me")
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """获取当前用户信息"""
+    return SuccessResponse(data={
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "avatarUrl": current_user.avatar_url
+        }
+    })

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
+from app.schemas.response import SuccessResponse
 
 router = APIRouter()
 
@@ -48,12 +49,9 @@ def get_settings(
         "backup_frequency": "daily"
     }
     
-    return {
-        "success": True,
-        "data": {
-            "settings": settings_data
-        }
-    }
+    return SuccessResponse(data={
+        "settings": settings_data
+    })
 
 @router.put("/")
 def update_settings(
@@ -63,9 +61,6 @@ def update_settings(
 ):
     # 在实际项目中，这里需要更新数据库中的用户设置
     # 目前只是返回接收到的数据
-    return {
-        "success": True,
-        "data": {
-            "settings": settings_data
-        }
-    }
+    return SuccessResponse(data={
+        "settings": settings_data
+    })

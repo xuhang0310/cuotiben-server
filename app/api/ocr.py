@@ -7,6 +7,7 @@ from app.database.session import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.question import Question
+from app.schemas.response import SuccessResponse
 from app.utils.ocr import paddle_ocr_recognize
 
 router = APIRouter()
@@ -30,12 +31,9 @@ async def ocr_recognize(
     # 调用OCR识别函数
     recognized_text = paddle_ocr_recognize(image_data)
     
-    return {
-        "success": True,
-        "data": {
-            "recognized_text": recognized_text
-        }
-    }
+    return SuccessResponse(data={
+        "recognizedText": recognized_text
+    })
 
 @router.post("/recognize-from-url")
 async def ocr_recognize_from_url(
@@ -80,12 +78,9 @@ async def ocr_recognize_from_url(
         # 调用OCR识别函数
         recognized_text = paddle_ocr_recognize(image_data)
         
-        return {
-            "success": True,
-            "data": {
-                "recognized_text": recognized_text
-            }
-        }
+        return SuccessResponse(data={
+            "recognizedText": recognized_text
+        })
         
     except requests.RequestException as e:
         raise HTTPException(
@@ -134,25 +129,22 @@ def save_ocr_question(
     db.commit()
     db.refresh(db_question)
     
-    return {
-        "success": True,
-        "data": {
-            "question": {
-                "id": db_question.id,
-                "title": db_question.title,
-                "content": db_question.content,
-                "options": [],
-                "correct_answer": db_question.correct_answer,
-                "explanation": db_question.explanation,
-                "difficulty": db_question.difficulty,
-                "subject": "",  # 需要根据subject_id获取学科名称
-                "tags": [],
-                "is_favorite": db_question.is_favorite,
-                "created_at": db_question.created_at,
-                "updated_at": db_question.updated_at,
-                "practice_count": 0,
-                "correct_count": 0,
-                "last_practice_at": None
-            }
+    return SuccessResponse(data={
+        "question": {
+            "id": db_question.id,
+            "title": db_question.title,
+            "content": db_question.content,
+            "options": [],
+            "correctAnswer": db_question.correct_answer,
+            "explanation": db_question.explanation,
+            "difficulty": db_question.difficulty,
+            "subject": "",  # 需要根据subject_id获取学科名称
+            "tags": [],
+            "isFavorite": db_question.is_favorite,
+            "createdAt": db_question.created_at,
+            "updatedAt": db_question.updated_at,
+            "practiceCount": 0,
+            "correctCount": 0,
+            "lastPracticeAt": None
         }
-    }
+    })

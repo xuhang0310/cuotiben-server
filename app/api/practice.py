@@ -11,6 +11,7 @@ from app.models.question_option import QuestionOption
 from app.models.tag import Tag
 from app.models.question_tag import QuestionTag
 from app.models.practice_record import PracticeRecord
+from app.schemas.response import SuccessResponse
 
 router = APIRouter()
 
@@ -101,12 +102,9 @@ def start_practice(
             "last_practice_at": last_practice_at
         })
     
-    return {
-        "success": True,
-        "data": {
-            "practice_questions": practice_questions
-        }
-    }
+    return SuccessResponse(data={
+        "practice_questions": practice_questions
+    })
 
 @router.post("/submit")
 def submit_answer(
@@ -148,13 +146,10 @@ def submit_answer(
     db.commit()
     db.refresh(practice_record)
     
-    return {
-        "success": True,
-        "data": {
-            "is_correct": is_correct,
-            "correct_answer": safe_str(getattr(question, 'correct_answer', ''))
-        }
-    }
+    return SuccessResponse(data={
+        "is_correct": is_correct,
+        "correct_answer": safe_str(getattr(question, 'correct_answer', ''))
+    })
 
 @router.get("/stats")
 def get_practice_stats(
@@ -171,11 +166,8 @@ def get_practice_stats(
     correct_count = sum(1 for record in practice_records if safe_bool(getattr(record, 'is_correct', False)))
     average_time = sum(record.time_spent for record in practice_records) / total_practice if total_practice > 0 else 0
     
-    return {
-        "success": True,
-        "data": {
-            "total_practice": total_practice,
-            "correct_count": correct_count,
-            "average_time": average_time
-        }
-    }
+    return SuccessResponse(data={
+        "total_practice": total_practice,
+        "correct_count": correct_count,
+        "average_time": average_time
+    })
