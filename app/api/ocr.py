@@ -37,7 +37,7 @@ async def ocr_recognize(
 
 @router.post("/recognize-from-url")
 async def ocr_recognize_from_url(
-    image_url: str = Form(...),
+    image_url: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
