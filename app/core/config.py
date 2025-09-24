@@ -4,11 +4,11 @@ import os
 
 class Settings(BaseSettings):
     # 数据库配置
-    DB_HOST: str = "localhost"
-    DB_USER: str = "root"
-    DB_PASSWORD: str = "password"
-    DB_NAME: str = "study_ok"
-    DB_PORT: int = 3306
+    DB_HOST: str = os.getenv("DB_HOST", "180.76.183.241")
+    DB_USER: str = os.getenv("DB_USER", "root")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "xp@2025")
+    DB_NAME: str = os.getenv("DB_NAME", "cuotiben")
+    DB_PORT: int = int(os.getenv("DB_PORT", "3306"))
     
     # JWT配置
     SECRET_KEY: str = "your-secret-key-here"
