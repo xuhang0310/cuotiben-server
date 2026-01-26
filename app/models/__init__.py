@@ -11,6 +11,7 @@ from .question_tag import QuestionTag
 from .practice_record import PracticeRecord
 from .user_settings import UserSettings
 from .historical_figure import HistoricalFigure
+from .conversation import Conversation, ConversationMember, ChatMessage
 
 __all__ = [
     "User",
@@ -22,5 +23,8 @@ __all__ = [
     "QuestionTag",
     "PracticeRecord",
     "UserSettings",
-    "HistoricalFigure"
+    "HistoricalFigure",
+    "Conversation",
+    "ConversationMember",
+    "ChatMessage"
 ]
