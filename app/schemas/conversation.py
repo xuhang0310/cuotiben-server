@@ -58,6 +58,19 @@ class ConversationMemberResponse(ConversationMemberBase):
         from_attributes = True
 
 
+class ConversationMemberWithUserInfo(BaseModel):
+    conversation_id: str
+    user_id: int
+    user_role: Optional[str] = "member"
+    id: int
+    joined_at: datetime
+    member_name: Optional[str] = None
+    avatar: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ChatMessageBase(BaseModel):
     conversation_id: str
     user_id: int
@@ -118,4 +131,4 @@ class PaginatedMembers(BaseModel):
     page: int
     size: int
     pages: int
-    data: List[ConversationMemberResponse]
+    data: List[ConversationMemberWithUserInfo]

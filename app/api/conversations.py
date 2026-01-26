@@ -6,7 +6,7 @@ from app.schemas.conversation import (
     ConversationCreate, ConversationUpdate, ConversationResponse,
     ConversationMemberCreate, ConversationMemberUpdate, ConversationMemberResponse,
     ChatMessageCreate, ChatMessageUpdate, ChatMessageResponse,
-    PaginatedConversations, PaginatedMembers, PaginatedMessages
+    PaginatedConversations, PaginatedMembers, PaginatedMessages, ConversationMemberWithUserInfo
 )
 from app.services.conversation import (
     get_conversation, get_conversations, create_conversation, update_conversation, delete_conversation,
@@ -121,11 +121,41 @@ def read_conversation_members(
     db: Session = Depends(get_db)
 ):
     """获取会话成员列表（支持分页）"""
-    members, total = get_conversation_members(db=db, conversation_id=conversation_id, skip=skip, limit=limit)
-    
+    from app.models.conversation import ConversationMember
+    from app.models.historical_figure import HistoricalFigure
+    from app.schemas.conversation import ConversationMemberWithUserInfo
+
+    # 使用JOIN查询获取成员的名称和头像信息
+    query = db.query(
+        ConversationMember,
+        HistoricalFigure.name.label('member_name'),
+        HistoricalFigure.avatar.label('avatar')
+    ).outerjoin(
+        HistoricalFigure, ConversationMember.user_id == HistoricalFigure.id
+    ).filter(ConversationMember.conversation_id == conversation_id)
+
+    total_query = db.query(ConversationMember).filter(ConversationMember.conversation_id == conversation_id)
+    total = total_query.count()
+
+    results = query.offset(skip).limit(limit).all()
+
+    # 将结果转换为包含额外字段的对象
+    members = []
+    for member, member_name, avatar in results:
+        member_response = ConversationMemberWithUserInfo(
+            conversation_id=member.conversation_id,
+            user_id=member.user_id,
+            user_role=member.user_role,
+            id=member.id,
+            joined_at=member.joined_at,
+            member_name=member_name,
+            avatar=avatar
+        )
+        members.append(member_response)
+
     # 计算总页数
     pages = (total + limit - 1) // limit
-    
+
     return PaginatedMembers(
         total=total,
         page=(skip // limit) + 1,

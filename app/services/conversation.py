@@ -2,8 +2,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from typing import Optional, Tuple, List
 from app.models.conversation import Conversation, ConversationMember, ChatMessage
+from app.models.historical_figure import HistoricalFigure
 from app.schemas.conversation import (
-    ConversationCreate, ConversationUpdate, 
+    ConversationCreate, ConversationUpdate,
     ConversationMemberCreate, ConversationMemberUpdate,
     ChatMessageCreate, ChatMessageUpdate
 )
@@ -65,9 +66,35 @@ def get_conversation_member(db: Session, member_id: int):
 
 def get_conversation_members(db: Session, conversation_id: str, skip: int = 0, limit: int = 10):
     """获取会话成员列表（支持分页）"""
-    query = db.query(ConversationMember).filter(ConversationMember.conversation_id == conversation_id)
-    total = query.count()
-    members = query.offset(skip).limit(limit).all()
+    # 使用JOIN查询获取成员的名称和头像信息
+    query = db.query(
+        ConversationMember,
+        HistoricalFigure.name.label('member_name'),
+        HistoricalFigure.avatar.label('avatar')
+    ).outerjoin(
+        HistoricalFigure, ConversationMember.user_id == HistoricalFigure.id
+    ).filter(ConversationMember.conversation_id == conversation_id)
+
+    total_query = db.query(ConversationMember).filter(ConversationMember.conversation_id == conversation_id)
+    total = total_query.count()
+
+    results = query.offset(skip).limit(limit).all()
+    # 将结果转换为包含额外字段的对象
+    from app.schemas.conversation import ConversationMemberWithUserInfo
+    members = []
+    for member, member_name, avatar in results:
+        # 创建包含额外字段的响应对象
+        member_response = ConversationMemberWithUserInfo(
+            id=member.id,
+            conversation_id=member.conversation_id,
+            user_id=member.user_id,
+            user_role=member.user_role,
+            joined_at=member.joined_at,
+            member_name=member_name,
+            avatar=avatar
+        )
+        members.append(member_response)
+
     return members, total
 
 
