@@ -120,9 +120,6 @@ backend-py/
 - PUT /api/settings - 更新用户设置
 
 ### 拍照录题接口
-- POST /api/ocr/recognize - OCR识别（上传图片文件）
-- POST /api/ocr/recognize-from-url - OCR识别（网络图片URL）
-- POST /api/ocr/save-question - 保存OCR识别的题目
 
 ### 管理接口
 - GET /api/tags - 获取所有标签
@@ -158,7 +155,6 @@ backend-py/
 4. 实现设置管理API
 
 ### 第四阶段：扩展功能实现
-1. 实现OCR识别功能（使用飞桨OCR）
 2. 实现标签、学科、题型管理API
 3. 实现用户管理API
 
@@ -190,11 +186,6 @@ backend-py/
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
 
-## OCR功能说明
-
-本项目集成了飞桨OCR引擎，用于识别图片中的文字内容：
-
-1. 使用PaddleOCR进行文字识别
 2. 支持中英文混合识别
 3. 自动下载预训练模型
 4. 识别失败时自动回退到模拟数据

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, users, ocr, questions, practice, statistics, settings, historical_figures
+from app.api import auth, users, questions, practice, statistics, settings, historical_figures
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
 
@@ -26,7 +26,6 @@ app.add_middleware(
 # 包含路由
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
-app.include_router(ocr.router, prefix="/api/ocr", tags=["ocr"])
 app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
 app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
 app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])
