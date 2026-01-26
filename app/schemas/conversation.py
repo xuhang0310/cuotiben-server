@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 
@@ -102,7 +102,7 @@ class PaginatedConversations(BaseModel):
     page: int
     size: int
     pages: int
-    data: list[ConversationResponse]
+    data: List[ConversationResponse]
 
 
 class PaginatedMessages(BaseModel):
@@ -110,7 +110,7 @@ class PaginatedMessages(BaseModel):
     page: int
     size: int
     pages: int
-    data: list[ChatMessageResponse]
+    data: List[ChatMessageResponse]
 
 
 class PaginatedMembers(BaseModel):
@@ -118,4 +118,4 @@ class PaginatedMembers(BaseModel):
     page: int
     size: int
     pages: int
-    data: list[ConversationMemberResponse]
+    data: List[ConversationMemberResponse]
