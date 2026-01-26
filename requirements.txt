@@ -1,12 +1,39 @@
+# requirements_py38_fixed.txt
+# Python 3.8 完全兼容版本（修复版）
+
+# Web框架 (兼容版本)
 fastapi==0.104.1
-uvicorn[standard]==0.23.2
+uvicorn[standard]==0.24.0.post1
+websockets==12.0
+
+# 数据库
 sqlalchemy==2.0.23
 mysql-connector-python==8.2.0
+aiomysql==0.2.0
+
+# 数据验证与配置（使用兼容版本）
+pydantic==1.10.13  # 降级到1.x版本以兼容Python 3.8
+pydantic-settings==2.1.0  # 兼容Pydantic 1.10+
 python-dotenv==1.0.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
-pydantic==2.4.2
-pydantic-settings==2.0.3
+
+# HTTP客户端和请求
+requests==2.31.0
+httpx==0.25.1
+
+# 图像处理
 pillow==9.5.0
 numpy==1.24.3
+
+# 安全与加密
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+
+# 表单处理
+python-multipart==0.0.6
+
+# 异步支持
+aiofiles==23.2.1
+
+# 可选：如果需要异步MySQL
+asyncmy==0.2.7
