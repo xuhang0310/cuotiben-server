@@ -199,11 +199,37 @@ def create_chat_message(db: Session, message: ChatMessageCreate):
     """创建新消息"""
     # 将message_metadata映射到数据库列名metadata
     message_dict = message.model_dump()
+
+    # 处理 display_time 字段，确保它是正确的格式
+    if 'display_time' in message_dict and message_dict['display_time']:
+        # 如果 display_time 不是 HH:MM:SS 格式，尝试标准化
+        display_time = message_dict['display_time']
+        # 如果是自定义格式如"昨天 16:14"，只保留时间部分
+        if isinstance(display_time, str) and ':' in display_time:
+            # 提取时间部分 (HH:MM 或 HH:MM:SS)
+            time_part = display_time.split()[-1]  # 取最后一个部分，通常是时间
+            if len(time_part.split(':')) == 2:  # 如果是 HH:MM 格式
+                time_part += ':00'  # 添加秒部分
+            message_dict['display_time'] = time_part
+        elif not isinstance(display_time, str):
+            # 如果不是字符串类型，设置为 None
+            message_dict['display_time'] = None
+
     # 由于模型中使用了Column('metadata', ...)，SQLAlchemy会自动映射
     db_message = ChatMessage(**message_dict)
     db.add(db_message)
     db.commit()
     db.refresh(db_message)
+
+    # 确保 display_time 是字符串格式，避免 Pydantic 验证错误
+    if hasattr(db_message, 'display_time') and db_message.display_time is not None:
+        if hasattr(db_message.display_time, 'total_seconds'):
+            total_seconds = int(db_message.display_time.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            db_message.display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
     return db_message
 
 
@@ -212,10 +238,35 @@ def update_chat_message(db: Session, message_id: int, message_update: ChatMessag
     db_message = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
     if db_message:
         update_data = message_update.model_dump(exclude_unset=True)
+
+        # 处理 display_time 字段，确保它是正确的格式
+        if 'display_time' in update_data and update_data['display_time']:
+            display_time = update_data['display_time']
+            # 如果是自定义格式如"昨天 16:14"，只保留时间部分
+            if isinstance(display_time, str) and ':' in display_time:
+                # 提取时间部分 (HH:MM 或 HH:MM:SS)
+                time_part = display_time.split()[-1]  # 取最后一个部分，通常是时间
+                if len(time_part.split(':')) == 2:  # 如果是 HH:MM 格式
+                    time_part += ':00'  # 添加秒部分
+                update_data['display_time'] = time_part
+            elif not isinstance(display_time, str):
+                # 如果不是字符串类型，设置为 None
+                update_data['display_time'] = None
+
         for field, value in update_data.items():
             setattr(db_message, field, value)
         db.commit()
         db.refresh(db_message)
+
+        # 确保 display_time 是字符串格式，避免 Pydantic 验证错误
+        if hasattr(db_message, 'display_time') and db_message.display_time is not None:
+            if hasattr(db_message.display_time, 'total_seconds'):
+                total_seconds = int(db_message.display_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                db_message.display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
     return db_message
 
 
