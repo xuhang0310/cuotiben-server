@@ -105,6 +105,8 @@ class ChatMessageResponse(ChatMessageBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    member_name: Optional[str] = None
+    avatar: Optional[str] = None
 
     class Config:
         from_attributes = True

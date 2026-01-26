@@ -156,12 +156,42 @@ def get_chat_message(db: Session, message_id: int):
 
 def get_chat_messages(db: Session, conversation_id: str, skip: int = 0, limit: int = 10):
     """获取会话中的消息列表（支持分页）"""
-    query = db.query(ChatMessage).filter(
-        and_(ChatMessage.conversation_id == conversation_id, 
+    # 使用 JOIN 查询获取消息及对应的用户信息
+    query = db.query(
+        ChatMessage,
+        HistoricalFigure.name.label('member_name'),
+        HistoricalFigure.avatar.label('avatar')
+    ).outerjoin(
+        HistoricalFigure, ChatMessage.user_id == HistoricalFigure.id
+    ).filter(
+        and_(ChatMessage.conversation_id == conversation_id,
              ChatMessage.is_deleted == 0)  # 只返回未删除的消息
     )
-    total = query.count()
-    messages = query.order_by(ChatMessage.created_at).offset(skip).limit(limit).all()
+    total = db.query(ChatMessage).filter(
+        and_(ChatMessage.conversation_id == conversation_id,
+             ChatMessage.is_deleted == 0)
+    ).count()
+    results = query.order_by(ChatMessage.created_at).offset(skip).limit(limit).all()
+
+    # 处理消息对象，添加用户信息
+    messages = []
+    for message, member_name, avatar in results:
+        # 设置额外的属性
+        message.member_name = member_name
+        message.avatar = avatar
+
+        # 处理 display_time 字段，确保它是字符串类型
+        if hasattr(message, 'display_time') and message.display_time is not None:
+            # 如果 display_time 是 timedelta 对象，则转换为 HH:MM:SS 格式的字符串
+            if hasattr(message.display_time, 'total_seconds'):
+                total_seconds = int(message.display_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                message.display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        messages.append(message)
+
     return messages, total
 
 
@@ -201,7 +231,34 @@ def delete_chat_message(db: Session, message_id: int):
 
 def get_user_messages(db: Session, user_id: int, skip: int = 0, limit: int = 10):
     """获取用户发送的所有消息"""
-    query = db.query(ChatMessage).filter(ChatMessage.user_id == user_id)
+    # 使用 JOIN 查询获取消息及对应的用户信息
+    query = db.query(
+        ChatMessage,
+        HistoricalFigure.name.label('member_name'),
+        HistoricalFigure.avatar.label('avatar')
+    ).outerjoin(
+        HistoricalFigure, ChatMessage.user_id == HistoricalFigure.id
+    ).filter(ChatMessage.user_id == user_id)
     total = query.count()
-    messages = query.order_by(desc(ChatMessage.created_at)).offset(skip).limit(limit).all()
+    results = query.order_by(desc(ChatMessage.created_at)).offset(skip).limit(limit).all()
+
+    # 处理消息对象，添加用户信息
+    messages = []
+    for message, member_name, avatar in results:
+        # 设置额外的属性
+        message.member_name = member_name
+        message.avatar = avatar
+
+        # 处理 display_time 字段，确保它是字符串类型
+        if hasattr(message, 'display_time') and message.display_time is not None:
+            # 如果 display_time 是 timedelta 对象，则转换为 HH:MM:SS 格式的字符串
+            if hasattr(message.display_time, 'total_seconds'):
+                total_seconds = int(message.display_time.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                seconds = total_seconds % 60
+                message.display_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        messages.append(message)
+
     return messages, total
