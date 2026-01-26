@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, users, ocr, questions, practice, statistics, settings
+from app.api import auth, users, ocr, questions, practice, statistics, settings, historical_figures
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
 
@@ -31,6 +31,7 @@ app.include_router(questions.router, prefix="/api/questions", tags=["questions"]
 app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
 app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
+app.include_router(historical_figures.router, prefix="/api/historical-figures", tags=["historical-figures"])
 
 @app.get("/")
 def read_root():

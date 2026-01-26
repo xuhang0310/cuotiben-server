@@ -10,6 +10,7 @@ from .question_option import QuestionOption
 from .question_tag import QuestionTag
 from .practice_record import PracticeRecord
 from .user_settings import UserSettings
+from .historical_figure import HistoricalFigure
 
 __all__ = [
     "User",
@@ -20,5 +21,6 @@ __all__ = [
     "QuestionOption",
     "QuestionTag",
     "PracticeRecord",
-    "UserSettings"
+    "UserSettings",
+    "HistoricalFigure"
 ]
