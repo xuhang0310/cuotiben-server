@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class HistoricalFigureBase(BaseModel):
@@ -34,4 +34,4 @@ class PaginatedHistoricalFigures(BaseModel):
     page: int
     size: int
     pages: int
-    data: list[HistoricalFigureResponse]
+    data: List[HistoricalFigureResponse]
