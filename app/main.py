@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.api import auth, users, questions, practice, statistics, settings, historical_figures, conversations
-from app.api import upload
+from app.api import upload, prompt_generator
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
 
@@ -35,6 +35,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(historical_figures.router, prefix="/api/historical-figures", tags=["historical-figures"])
 app.include_router(conversations.router, prefix="/api/chat", tags=["conversations"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])
+app.include_router(prompt_generator.router, prefix="/api/prompt", tags=["prompt-generator"])
 
 # 挂载静态文件目录，用于访问上传的图片
 app.mount("/static", StaticFiles(directory="app"), name="static")
