@@ -78,11 +78,6 @@ PORT=8000
 运行 `init_db.py` 脚本会自动创建以下表：
 - users: 用户表
 - subjects: 学科表
-- question_types: 题型表
-- questions: 题目表
-- question_options: 题目选项表
-- tags: 标签表
-- question_tags: 题目标签关联表
 - practice_records: 练习记录表
 - user_settings: 用户设置表
 
@@ -100,13 +95,6 @@ PORT=8000
 - `POST /api/auth/login` - 用户登录
 - `GET /api/auth/me` - 获取当前用户信息
 
-#### 题目管理
-- `GET /api/questions/` - 获取题目列表
-- `GET /api/questions/{id}` - 获取题目详情
-- `POST /api/questions/` - 创建题目
-- `PUT /api/questions/{id}` - 更新题目
-- `DELETE /api/questions/{id}` - 删除题目
-- `POST /api/questions/{id}/toggle-favorite` - 切换收藏状态
 
 #### 练习系统
 - `POST /api/practice/start` - 开始练习

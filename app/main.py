@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.api import auth, users, questions, practice, statistics, settings, historical_figures, conversations
+from app.api import historical_figures, conversations
 from app.api import upload, prompt_generator
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
@@ -11,8 +11,8 @@ Base.metadata.create_all(bind=engine)
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="错题本系统API",
-    description="错题本系统的后端API",
+    title="自媒体营销系统API",
+    description="自媒体营销系统的后端API",
     version="1.0.0"
 )
 
@@ -26,12 +26,6 @@ app.add_middleware(
 )
 
 # 包含路由
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(users.router, prefix="/api/users", tags=["users"])
-app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
-app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
-app.include_router(statistics.router, prefix="/api/statistics", tags=["statistics"])
-app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(historical_figures.router, prefix="/api/historical-figures", tags=["historical-figures"])
 app.include_router(conversations.router, prefix="/api/chat", tags=["conversations"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])

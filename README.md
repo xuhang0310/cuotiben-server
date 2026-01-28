@@ -1,198 +1,175 @@
-# Python后端实现规划
+# 错题本系统 - 后端API
 
-## 技术栈选择
+## 项目概述
 
-- **Web框架**: FastAPI - 现代、快速（高性能）的Web框架，基于Python类型提示
-- **数据库**: MySQL - 与原有后端保持一致
-- **ORM**: SQLAlchemy - Python SQL工具包和ORM
-- **异步支持**: async/await - 提供高性能异步处理
-- **依赖管理**: pipenv 或 poetry
-- **环境配置**: python-dotenv
-- **文件上传**: python-multipart
-- **JWT认证**: python-jose[cryptography]
-- **OCR识别**: PaddleOCR - 飞桨OCR引擎
+错题本系统是一个智能化的学习辅助平台，帮助学生高效管理和复习错题，提升学习效率。本项目提供了一套完整的后端API服务，支持用户注册登录、练习管理、历史人物问答、AI对话等功能。
 
-## 项目结构
+## 核心功能
 
-```
-backend-py/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 # 应用入口
-│   ├── database/               # 数据库配置
-│   │   ├── __init__.py
-│   │   └── session.py          # 数据库会话配置
-│   ├── models/                 # 数据模型
-│   │   ├── __init__.py
-│   │   ├── user.py
-│   │   ├── subject.py
-│   │   ├── question_type.py
-│   │   ├── question.py
-│   │   ├── question_option.py
-│   │   ├── tag.py
-│   │   ├── question_tag.py
-│   │   ├── practice_record.py
-│   │   ├── answer_template.py
-│   │   ├── review_schedule.py
-│   │   └── user_settings.py
-│   ├── schemas/                # Pydantic模型（请求/响应）
-│   │   ├── __init__.py
-│   │   ├── user.py
-│   │   ├── subject.py
-│   │   ├── question_type.py
-│   │   ├── question.py
-│   │   ├── tag.py
-│   │   ├── practice_record.py
-│   │   ├── statistics.py
-│   │   └── settings.py
-│   ├── api/                    # API路由
-│   │   ├── __init__.py
-│   │   ├── auth.py
-│   │   ├── users.py
-│   │   ├── subjects.py
-│   │   ├── question_types.py
-│   │   ├── tags.py
-│   │   ├── questions.py
-│   │   ├── practice.py
-│   │   ├── statistics.py
-│   │   ├── settings.py
-│   │   └── ocr.py
-│   ├── core/                   # 核心配置和安全
-│   │   ├── __init__.py
-│   │   ├── config.py           # 配置管理
-│   │   ├── security.py         # 安全相关（JWT、密码哈希等）
-│   │   └── dependencies.py     # 依赖注入
-│   └── utils/                  # 工具函数
-│       ├── __init__.py
-│       └── ocr.py              # OCR相关工具
-├── tests/                      # 测试文件
-│   ├── __init__.py
-│   ├── test_auth.py
-│   ├── test_questions.py
-│   └── ...
-├── requirements.txt            # 依赖列表
-├── .env                       # 环境变量配置
-├── .env.example               # 环境变量示例
-└── README.md                  # 项目说明
-```
+### 1. 用户管理
+- **用户注册**：新用户可以通过注册接口创建账户
+- **用户登录**：通过用户名和密码进行身份验证，获取访问令牌
+- **个人信息管理**：查看和更新个人资料
 
-## 数据库模型映射
+### 2. 练习系统
+- **开始练习**：用户可以选择学科开始练习模式
+- **提交答案**：练习过程中可提交答案，系统会记录练习进度
+- **练习统计**：查看练习历史和统计数据，了解学习进展
 
-与原有Node.js后端保持一致的数据库表结构：
+### 3. 历史人物问答
+- **人物查询**：通过API查询历史人物相关信息
+- **智能问答**：与历史人物进行互动问答，加深对历史知识的理解
 
-1. users - 用户表
-2. subjects - 学科表
-3. question_types - 题型表
-4. questions - 题目表
-5. question_options - 题目选项表
-6. tags - 标签表
-7. question_tags - 题目标签关联表
-8. practice_records - 练习记录表
-9. answer_templates - 答案模板表
-10. review_schedules - 复习计划表
-11. user_settings - 用户设置表
+### 4. AI对话助手
+- **智能聊天**：与AI助手进行自然语言对话
+- **学习辅助**：获取学习建议和解题思路
 
-## API端点映射
+### 5. 内容管理
+- **文件上传**：支持图片等多媒体文件上传功能
+- **内容生成**：通过提示词生成相关内容
 
-### 认证相关接口
-- POST /api/auth/register - 用户注册
-- POST /api/auth/login - 用户登录
-- GET /api/auth/me - 获取当前用户信息
+## 技术架构
 
-### 题目管理接口
-- GET /api/questions - 获取题目列表
-- GET /api/questions/{id} - 获取题目详情
-- POST /api/questions - 创建题目
-- PUT /api/questions/{id} - 更新题目
-- DELETE /api/questions/{id} - 删除题目
-- POST /api/questions/{id}/toggle-favorite - 切换收藏状态
+- **Web框架**: FastAPI - 提供高性能的API服务
+- **数据库**: MySQL - 存储用户数据和练习记录
+- **认证机制**: JWT - 安全的用户身份验证
+- **异步支持**: asyncio - 高效处理并发请求
 
-### 练习接口
-- POST /api/practice/start - 开始练习
-- POST /api/practice/submit - 提交答案
-- GET /api/practice/stats - 获取练习统计数据
+## 快速开始
 
-### 统计接口
-- GET /api/statistics - 获取统计数据
+### 环境要求
+- Python 3.8+
+- MySQL数据库
+- pip包管理器
 
-### 设置接口
-- GET /api/settings - 获取用户设置
-- PUT /api/settings - 更新用户设置
+### 安装步骤
 
-### 拍照录题接口
-
-### 管理接口
-- GET /api/tags - 获取所有标签
-- GET /api/tags/{id} - 获取标签详情
-- POST /api/tags - 创建标签
-- GET /api/subjects - 获取所有学科
-- GET /api/subjects/{id} - 获取学科详情
-- POST /api/subjects - 创建学科
-- GET /api/question-types - 获取所有题型
-- GET /api/question-types/{id} - 获取题型详情
-- POST /api/question-types - 创建题型
-- GET /api/users - 获取所有用户
-- GET /api/users/{id} - 获取用户详情
-- POST /api/users - 创建用户
-
-## 开发计划
-
-### 第一阶段：基础架构搭建
-1. 创建项目结构
-2. 配置数据库连接
-3. 实现核心配置和安全模块
-4. 创建基础数据模型
-
-### 第二阶段：认证系统实现
-1. 实现用户注册、登录功能
-2. 实现JWT令牌生成和验证
-3. 实现密码哈希处理
-
-### 第三阶段：核心功能实现
-1. 实现题目管理API
-2. 实现练习系统API
-3. 实现统计系统API
-4. 实现设置管理API
-
-### 第四阶段：扩展功能实现
-2. 实现标签、学科、题型管理API
-3. 实现用户管理API
-
-### 第五阶段：测试和优化
-1. 编写单元测试
-2. 性能优化
-3. 安全性检查
-4. 文档完善
-
-## 运行项目
-
-1. 安装依赖：
+1. **克隆项目**
    ```bash
+   git clone <repository-url>
+   cd cuotiben-server
+   ```
+
+2. **创建虚拟环境并安装依赖**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # Windows: venv\Scripts\activate
+   
    pip install -r requirements.txt
    ```
 
-2. 配置环境变量：
+3. **配置环境变量**
    ```bash
    cp .env.example .env
-   # 编辑 .env 文件，设置正确的数据库连接信息和其他配置
+   # 编辑 .env 文件，配置数据库连接信息
    ```
 
-3. 运行项目：
+4. **初始化数据库**
+   ```bash
+   python init_db.py
+   ```
+
+5. **启动服务器**
    ```bash
    python run.py
    ```
 
-4. 访问API文档：
+6. **访问API文档**
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
 
-2. 支持中英文混合识别
-3. 自动下载预训练模型
-4. 识别失败时自动回退到模拟数据
+## API使用指南
+
+### 认证流程
+1. **注册用户**: `POST /api/auth/register`
+2. **登录获取令牌**: `POST /api/auth/login`
+3. **使用令牌访问受保护资源**: 在请求头中添加 `Authorization: Bearer <token>`
+
+### 主要功能接口
+
+#### 用户管理
+- `POST /api/auth/register` - 用户注册
+- `POST /api/auth/login` - 用户登录
+- `GET /api/auth/me` - 获取当前用户信息
+
+#### 练习系统
+- `POST /api/practice/start` - 开始练习
+- `POST /api/practice/submit` - 提交答案
+- `GET /api/practice/stats` - 获取练习统计
+
+#### 历史人物问答
+- `GET /api/historical-figures` - 获取历史人物列表
+- `GET /api/historical-figures/{id}` - 获取特定历史人物信息
+
+#### AI对话
+- `POST /api/chat` - 与AI助手对话
+
+#### 文件上传
+- `POST /api/upload/image` - 上传图片文件
 
 ## 部署说明
 
-1. 生产环境建议使用Gunicorn或Uvicorn作为WSGI服务器
-2. 建议使用Nginx作为反向代理
-3. 数据库连接池配置优化
-4. 日志记录和监控配置
+### 生产环境部署
+1. 使用Gunicorn或Uvicorn作为ASGI服务器
+2. 配置Nginx作为反向代理
+3. 设置SSL证书以启用HTTPS
+4. 配置数据库连接池和缓存机制
+
+### Docker部署（可选）
+```dockerfile
+FROM python:3.9
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+## 项目结构
+
+```
+cuotiben-server/
+├── app/
+│   ├── main.py                 # 应用入口
+│   ├── database/               # 数据库配置
+│   ├── models/                 # 数据模型
+│   ├── schemas/                # 数据验证模型
+│   ├── api/                    # API路由
+│   │   ├── auth.py             # 认证相关接口
+│   │   ├── users.py            # 用户管理接口
+│   │   ├── practice.py         # 练习系统接口
+│   │   ├── historical_figures.py # 历史人物接口
+│   │   ├── conversations.py    # 对话接口
+│   │   └── upload.py           # 文件上传接口
+│   ├── core/                   # 核心配置
+│   └── utils/                  # 工具函数
+├── init_db.py                  # 数据库初始化脚本
+├── run.py                      # 启动脚本
+├── requirements.txt            # 依赖列表
+└── README.md                   # 项目说明
+```
+
+## 贡献指南
+
+我们欢迎社区贡献！如果您想为项目做出贡献：
+
+1. Fork项目仓库
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建Pull Request
+
+## 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+## 支持
+
+如果您遇到任何问题或有任何建议，请通过以下方式联系我们：
+- 提交Issue
+- 发送邮件至 [support@example.com](mailto:support@example.com)
