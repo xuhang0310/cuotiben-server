@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import os
-import requests
 import json
+import httpx
 from app.core.config import settings
 
 
@@ -35,7 +35,7 @@ async def generate_with_qwen(request: QwenRequest):
     # 构建完整的提示词
     full_prompt = request.prompt + "\n\n" + request.text if request.prompt else request.text
 
-    # 阿里云通义千问API的URL (这里使用通义千问的API地址)
+    # 阿里云通义千问API的URL
     url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 
     headers = {
@@ -44,7 +44,7 @@ async def generate_with_qwen(request: QwenRequest):
     }
 
     payload = {
-        "model": "qwen-max",  # 或者使用其他可用的模型如 qwen-plus, qwen-turbo
+        "model": "qwen-max",
         "input": {
             "messages": [
                 {
@@ -54,12 +54,13 @@ async def generate_with_qwen(request: QwenRequest):
             ]
         },
         "parameters": {
-            "result_format": "json"  # 请求返回格式为JSON
+            "result_format": "json"
         }
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
 
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"API调用失败: {response.text}")
@@ -69,12 +70,10 @@ async def generate_with_qwen(request: QwenRequest):
         # 解析并返回AI生成的内容
         generated_text = result.get("output", {}).get("text", "")
 
-        # 这里可以根据实际需求解析返回的数据结构
-        # 假设返回的是JSON格式的数据
+        # 尝试解析JSON
         try:
             parsed_data = json.loads(generated_text)
         except json.JSONDecodeError:
-            # 如果返回的不是有效的JSON，则直接返回文本内容
             parsed_data = {"generated_text": generated_text}
 
         return QwenResponse(
@@ -83,7 +82,7 @@ async def generate_with_qwen(request: QwenRequest):
             message="AI生成成功"
         )
 
-    except requests.exceptions.RequestException as e:
+    except httpx.HTTPError as e:
         raise HTTPException(status_code=500, detail=f"请求阿里云API时发生错误: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"处理请求时发生未知错误: {str(e)}")
