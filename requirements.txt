@@ -22,7 +22,6 @@ httpx==0.25.1
 
 # 图像处理
 pillow==11.0.0
-numpy==2.3.0
 
 # 安全与加密
 python-jose[cryptography]==3.3.0
