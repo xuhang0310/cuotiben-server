@@ -35,5 +35,3 @@ python-multipart==0.0.6
 aiofiles==23.2.1
 
 
-# 可选：如果需要异步MySQL
-asyncmy==0.2.7
