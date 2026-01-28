@@ -30,8 +30,7 @@ class ConversationResponse(ConversationBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class ConversationMemberBase(BaseModel):
@@ -54,8 +53,7 @@ class ConversationMemberResponse(ConversationMemberBase):
     id: int
     joined_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class ConversationMemberWithUserInfo(BaseModel):
@@ -67,8 +65,7 @@ class ConversationMemberWithUserInfo(BaseModel):
     member_name: Optional[str] = None
     avatar: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class ChatMessageBase(BaseModel):
@@ -108,8 +105,7 @@ class ChatMessageResponse(ChatMessageBase):
     member_name: Optional[str] = None
     avatar: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class PaginatedConversations(BaseModel):

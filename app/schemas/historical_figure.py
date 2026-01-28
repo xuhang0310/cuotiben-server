@@ -25,8 +25,7 @@ class HistoricalFigureUpdate(BaseModel):
 class HistoricalFigureResponse(HistoricalFigureBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class PaginatedHistoricalFigures(BaseModel):

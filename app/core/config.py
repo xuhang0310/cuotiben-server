@@ -22,8 +22,6 @@ class Settings(BaseSettings):
     # 阿里云API配置
     ALIBABA_CLOUD_API_KEY: str = os.getenv("ALIBABA_CLOUD_API_KEY", "")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 settings = Settings()

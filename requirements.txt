@@ -2,7 +2,7 @@
 # Python 3.8 完全兼容版本（修复版）
 
 # Web框架 (兼容版本)
-fastapi==0.104.1
+fastapi==0.115.6
 uvicorn[standard]==0.24.0.post1
 websockets==12.0
 
@@ -12,8 +12,8 @@ mysql-connector-python==8.2.0
 aiomysql==0.2.0
 
 # 数据验证与配置（使用兼容版本）
-pydantic==1.10.13  # 降级到1.x版本以兼容Python 3.8
-pydantic-settings==2.1.0  # 兼容Pydantic 1.10+
+pydantic==2.11.0
+pydantic-settings==2.6.1
 python-dotenv==1.0.0
 
 # HTTP客户端和请求
