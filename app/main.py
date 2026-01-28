@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.api import historical_figures, conversations
 from app.api import upload, prompt_generator
+from app.api import qwen_ai
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
 
@@ -30,6 +31,7 @@ app.include_router(historical_figures.router, prefix="/api/historical-figures", 
 app.include_router(conversations.router, prefix="/api/chat", tags=["conversations"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(prompt_generator.router, prefix="/api/prompt", tags=["prompt-generator"])
+app.include_router(qwen_ai.router, prefix="/api/qwen", tags=["qwen-ai"])
 
 # 挂载静态文件目录，用于访问上传的图片
 app.mount("/static", StaticFiles(directory="app"), name="static")

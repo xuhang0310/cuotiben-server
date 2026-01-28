@@ -9,16 +9,19 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "xp@2025")
     DB_NAME: str = os.getenv("DB_NAME", "cuotiben")
     DB_PORT: int = int(os.getenv("DB_PORT", "3306"))
-    
+
     # JWT配置
     SECRET_KEY: str = "your-secret-key-here"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
+
     # 服务器配置
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    
+
+    # 阿里云API配置
+    ALIBABA_CLOUD_API_KEY: str = os.getenv("ALIBABA_CLOUD_API_KEY", "")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

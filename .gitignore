@@ -4,3 +4,4 @@ app/core/__pycache__
 *.pyc
 *.pyc
 *.pyc
+.env
