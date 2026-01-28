@@ -28,21 +28,21 @@ async def generate_with_qwen(request: QwenRequest):
     """
     # 获取API密钥 - 从环境变量或配置中获取
     api_key = os.getenv("ALIBABA_CLOUD_API_KEY") or settings.ALIBABA_CLOUD_API_KEY
-    
+
     if not api_key:
         raise HTTPException(status_code=400, detail="缺少阿里云API密钥，请在环境变量中设置 ALIBABA_CLOUD_API_KEY")
-    
+
     # 构建完整的提示词
     full_prompt = request.prompt + "\n\n" + request.text if request.prompt else request.text
-    
+
     # 阿里云通义千问API的URL (这里使用通义千问的API地址)
     url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
-    
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    
+
     payload = {
         "model": "qwen-max",  # 或者使用其他可用的模型如 qwen-plus, qwen-turbo
         "input": {
@@ -57,18 +57,18 @@ async def generate_with_qwen(request: QwenRequest):
             "result_format": "json"  # 请求返回格式为JSON
         }
     }
-    
+
     try:
         response = requests.post(url, headers=headers, json=payload)
-        
+
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"API调用失败: {response.text}")
-        
+
         result = response.json()
-        
+
         # 解析并返回AI生成的内容
         generated_text = result.get("output", {}).get("text", "")
-        
+
         # 这里可以根据实际需求解析返回的数据结构
         # 假设返回的是JSON格式的数据
         try:
@@ -76,76 +76,14 @@ async def generate_with_qwen(request: QwenRequest):
         except json.JSONDecodeError:
             # 如果返回的不是有效的JSON，则直接返回文本内容
             parsed_data = {"generated_text": generated_text}
-        
+
         return QwenResponse(
             success=True,
             data=parsed_data,
             message="AI生成成功"
         )
-        
+
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"请求阿里云API时发生错误: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"处理请求时发生未知错误: {str(e)}")
-
-
-# 另一种实现方式：使用官方SDK
-# 如果需要使用官方SDK，可以先安装: pip install dashscope
-try:
-    import dashscope
-    DASHSCOPE_AVAILABLE = True
-except ImportError:
-    DASHSCOPE_AVAILABLE = False
-
-
-@router.post("/generate-sdk", response_model=QwenResponse)
-async def generate_with_qwen_sdk(request: QwenRequest):
-    """
-    使用DashScope SDK调用阿里云千问AI大模型
-    """
-    if not DASHSCOPE_AVAILABLE:
-        raise HTTPException(status_code=500, detail="DashScope SDK未安装，请运行: pip install dashscope")
-    
-    api_key = os.getenv("ALIBABA_CLOUD_API_KEY") or getattr(settings, 'ALIBABA_CLOUD_API_KEY', None)
-    
-    if not api_key:
-        raise HTTPException(status_code=400, detail="缺少阿里云API密钥，请在环境变量中设置 ALIBABA_CLOUD_API_KEY")
-    
-    # 设置API密钥
-    dashscope.api_key = api_key
-    
-    # 构建完整的提示词
-    full_prompt = request.prompt + "\n\n" + request.text if request.prompt else request.text
-    
-    try:
-        # 调用通义千问API
-        response = dashscope.Generation.call(
-            model="qwen-max",  # 或 qwen-plus, qwen-turbo
-            prompt=full_prompt,
-            result_format='json'  # 指定期望的输出格式
-        )
-        
-        if response.status_code == 200:
-            # 解析并返回AI生成的内容
-            generated_text = response.output.text
-            
-            # 尝试解析为JSON格式
-            try:
-                parsed_data = json.loads(generated_text)
-            except json.JSONDecodeError:
-                # 如果返回的不是有效的JSON，则直接返回文本内容
-                parsed_data = {"generated_text": generated_text}
-            
-            return QwenResponse(
-                success=True,
-                data=parsed_data,
-                message="AI生成成功"
-            )
-        else:
-            raise HTTPException(
-                status_code=response.status_code, 
-                detail=f"API调用失败: {response.code}, {response.message}"
-            )
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"调用阿里云API时发生错误: {str(e)}")

@@ -35,8 +35,6 @@ python-multipart==0.0.6
 # 异步支持
 aiofiles==23.2.1
 
-# 阿里云DashScope SDK
-dashscope==1.19.1
 
 # 可选：如果需要异步MySQL
 asyncmy==0.2.7
