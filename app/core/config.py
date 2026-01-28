@@ -1,3 +1,5 @@
+# Import BaseSettings from pydantic_settings for Pydantic v2 compatibility
+# This is required for Python 3.13 environments
 from pydantic_settings import BaseSettings
 from typing import Optional
 import os
@@ -22,6 +24,7 @@ class Settings(BaseSettings):
     # 阿里云API配置
     ALIBABA_CLOUD_API_KEY: str = os.getenv("ALIBABA_CLOUD_API_KEY", "")
 
+    # Pydantic v2 configuration
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 settings = Settings()

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -9,11 +10,11 @@ class UserBase(BaseModel):
 
     model_config = ConfigDict(
         # 为字段名启用驼峰命名转换
-        alias_generator = lambda field_name: ''.join(
+        alias_generator=lambda field_name: ''.join(
             word.capitalize() if i > 0 else word
             for i, word in enumerate(field_name.split('_'))
         ),
-        populate_by_name = True
+        populate_by_name=True
     )
 
 # 用户创建模型
@@ -34,11 +35,11 @@ class User(UserBase):
     model_config = ConfigDict(
         from_attributes=True,
         # 为字段名启用驼峰命名转换
-        alias_generator = lambda field_name: ''.join(
+        alias_generator=lambda field_name: ''.join(
             word.capitalize() if i > 0 else word
             for i, word in enumerate(field_name.split('_'))
         ),
-        populate_by_name = True
+        populate_by_name=True
     )
 
 # 用户登录模型
@@ -48,11 +49,11 @@ class UserLogin(BaseModel):
 
     model_config = ConfigDict(
         # 为字段名启用驼峰命名转换
-        alias_generator = lambda field_name: ''.join(
+        alias_generator=lambda field_name: ''.join(
             word.capitalize() if i > 0 else word
             for i, word in enumerate(field_name.split('_'))
         ),
-        populate_by_name = True
+        populate_by_name=True
     )
 
 # 令牌模型
@@ -62,11 +63,11 @@ class Token(BaseModel):
 
     model_config = ConfigDict(
         # 为字段名启用驼峰命名转换
-        alias_generator = lambda field_name: ''.join(
+        alias_generator=lambda field_name: ''.join(
             word.capitalize() if i > 0 else word
             for i, word in enumerate(field_name.split('_'))
         ),
-        populate_by_name = True
+        populate_by_name=True
     )
 
 # 令牌数据模型
@@ -75,9 +76,9 @@ class TokenData(BaseModel):
 
     model_config = ConfigDict(
         # 为字段名启用驼峰命名转换
-        alias_generator = lambda field_name: ''.join(
+        alias_generator=lambda field_name: ''.join(
             word.capitalize() if i > 0 else word
             for i, word in enumerate(field_name.split('_'))
         ),
-        populate_by_name = True
+        populate_by_name=True
     )
