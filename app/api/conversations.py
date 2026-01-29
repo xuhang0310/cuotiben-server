@@ -241,16 +241,27 @@ def read_messages(
 ):
     """获取会话中的消息列表（支持分页）"""
     messages, total = get_chat_messages(db=db, conversation_id=conversation_id, skip=skip, limit=limit)
-    
+
+    # 处理头像URL - 如果不是以http开头，则拼接域名
+    processed_messages = []
+    for message in messages:
+        message_dict = message.__dict__.copy()  # 创建副本以避免修改原始对象
+        if hasattr(message, 'avatar') and message.avatar:
+            avatar = message.avatar
+            # 如果头像URL不是以http开头，则拼接域名
+            if not avatar.lower().startswith(('http://', 'https://')):
+                message_dict['avatar'] = f"http://180.76.183.241:8000/{avatar.lstrip('/')}"
+        processed_messages.append(ChatMessageResponse(**message_dict))
+
     # 计算总页数
     pages = (total + limit - 1) // limit
-    
+
     return PaginatedMessages(
         total=total,
         page=(skip // limit) + 1,
         size=limit,
         pages=pages,
-        data=messages
+        data=processed_messages
     )
 
 
