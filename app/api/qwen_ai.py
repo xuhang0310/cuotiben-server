@@ -74,12 +74,15 @@ async def generate_with_qwen(request: QwenRequest):
 1. memberList：列出文本中所有说过话的人物，使用原文中的标准称呼
 2. content数组：按照说话内容在原文中出现的顺序，为每个发言创建一个对象
 3. sortId：从1开始顺序编号，表示发言的先后顺序
-4. 保持原文的说话内容和标点符号，不做修改或删减
+4. 根据原文的说话内容进行提取，要求风趣幽默，并符合人物性格特点
 
 示例参考：
 如果文本包含：
 人物A说："内容1"
 人物B说："内容2"
+人物A说："内容3"
+人物B说："内容4"
+人物C说："内容5"
 
 那么输出应为：
 {
@@ -134,15 +137,14 @@ async def generate_with_qwen(request: QwenRequest):
         async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(url, headers=headers, json=payload)
 
-        logger.info(f"API response received with status code: {response}")
+        logger.info(f"API response received with status code: {response.status_code}")
 
         if response.status_code != 200:
             logger.error(f"API call failed with status {response.status_code}: {response}")
             raise HTTPException(status_code=response.status_code, detail=f"API调用失败: {response.text}")
 
         result = response.json()
-        logger.info("API response parsed as JSON successfully")
-        logger.info(f"Raw API response: {json.dumps(result, ensure_ascii=False, indent=2)}")
+        logger.info("API response parsed as JSON successfully ")
 
         # 解析并返回AI生成的内容
         # For OpenAI-compatible API, the response structure is different
@@ -154,15 +156,12 @@ async def generate_with_qwen(request: QwenRequest):
 
         logger.info(f"Generated text received with length: {len(generated_text)} characters")
 
-        # 尝试解析JSON - The API returns a JSON string that needs to be parsed
+        # 尝试解析JSON
         try:
-            # First, try to parse the generated text as JSON
             parsed_data = json.loads(generated_text)
             logger.info("Generated text parsed as JSON successfully")
-        except json.JSONDecodeError as e:
-            logger.warning(f"Generated text is not valid JSON: {str(e)}")
-            logger.info(f"Raw generated text: {repr(generated_text)}")
-            # If it's not valid JSON, return the raw text
+        except json.JSONDecodeError:
+            logger.warning("Generated text is not valid JSON, returning as plain text")
             parsed_data = {"generated_text": generated_text}
 
         logger.info("Request completed successfully")
