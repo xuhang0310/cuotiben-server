@@ -54,7 +54,7 @@ async def generate_with_qwen(request: QwenRequest):
 
 任务要求：
 1. 从提供的文本中提取所有说话的人物，生成一个说话人列表（memberList）
-2. 从提供的文本中提取所有人说的话，按照原文中出现的先后顺序进行排列
+2. 从提供的文本中提取所有人说的话，按照原文中对话的顺序进行排列，生成一个内容列表（content），每条内容包括说话人姓名、排序ID和说话内容
 3. 将上述两个结果合并成一个统一的JSON格式
 
 输出格式规范：
@@ -64,7 +64,7 @@ async def generate_with_qwen(request: QwenRequest):
     {
       "speaker": "说话人姓名",
       "sortId": 序号,
-      "content": "该人物说的原话内容"
+      "content": "根据原文的说话内容进行提取，要求风趣幽默，并符合人物性格特点"
     },
     ...
   ]
