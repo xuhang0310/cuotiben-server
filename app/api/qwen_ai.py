@@ -154,12 +154,15 @@ async def generate_with_qwen(request: QwenRequest):
 
         logger.info(f"Generated text received with length: {len(generated_text)} characters")
 
-        # 尝试解析JSON
+        # 尝试解析JSON - The API returns a JSON string that needs to be parsed
         try:
+            # First, try to parse the generated text as JSON
             parsed_data = json.loads(generated_text)
             logger.info("Generated text parsed as JSON successfully")
-        except json.JSONDecodeError:
-            logger.warning("Generated text is not valid JSON, returning as plain text")
+        except json.JSONDecodeError as e:
+            logger.warning(f"Generated text is not valid JSON: {str(e)}")
+            logger.info(f"Raw generated text: {repr(generated_text)}")
+            # If it's not valid JSON, return the raw text
             parsed_data = {"generated_text": generated_text}
 
         logger.info("Request completed successfully")
