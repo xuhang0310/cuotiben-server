@@ -62,14 +62,25 @@ def read_figures(
 ):
     """获取历史人物列表（支持分页）"""
     figures, total = get_historical_figures(db=db, skip=skip, limit=limit)
-    
+
+    # 处理头像URL - 如果不是以http开头，则拼接域名
+    processed_figures = []
+    for figure in figures:
+        figure_dict = figure.__dict__.copy()  # 创建副本以避免修改原始对象
+        if hasattr(figure, 'avatar') and figure.avatar:
+            avatar = figure.avatar
+            # 如果头像URL不是以http开头，则拼接域名
+            if not avatar.lower().startswith(('http://', 'https://')):
+                figure_dict['avatar'] = f"http://180.76.183.241:8000/{avatar.lstrip('/')}"
+        processed_figures.append(HistoricalFigureResponse(**figure_dict))
+
     # 计算总页数
     pages = (total + limit - 1) // limit
-    
+
     return PaginatedHistoricalFigures(
         total=total,
         page=(skip // limit) + 1,
         size=limit,
         pages=pages,
-        data=figures
+        data=processed_figures
     )
