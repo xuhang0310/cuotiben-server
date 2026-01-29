@@ -32,6 +32,10 @@ async def generate_with_qwen(request: QwenRequest):
     if not api_key:
         raise HTTPException(status_code=400, detail="缺少阿里云API密钥，请在环境变量中设置 ALIBABA_CLOUD_API_KEY")
 
+    # 检查输入文本长度，防止过长的文本导致API调用失败
+    if len(request.text) > 8000:  # 限制文本长度，可根据API限制调整
+        raise HTTPException(status_code=400, detail=f"输入文本过长 ({len(request.text)} 字符)，请减少到8000字符以内")
+
     # 固定的提示词，用于文本信息提取
     fixed_prompt = """你是一个文本信息提取助手，请严格按照要求处理用户提供的文本。
 
@@ -110,7 +114,7 @@ async def generate_with_qwen(request: QwenRequest):
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(url, headers=headers, json=payload)
 
         if response.status_code != 200:
@@ -133,7 +137,15 @@ async def generate_with_qwen(request: QwenRequest):
             message="AI生成成功"
         )
 
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=500, detail="请求阿里云API超时，请稍后重试")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"API请求状态错误: {e.response.text}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"请求阿里云API时发生网络错误: {str(e)}")
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"请求阿里云API时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"请求阿里云API时发生HTTP错误: {str(e)}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"解析API响应时发生JSON错误: {str(e)}, 响应内容: {result}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"处理请求时发生未知错误: {str(e)}")
