@@ -15,6 +15,7 @@ from app.services.historical_figure import (
     update_historical_figure,
     delete_historical_figure
 )
+from app.core.config import settings
 
 router = APIRouter(prefix="", tags=["historical-figures"])
 
@@ -71,7 +72,7 @@ def read_figures(
             avatar = figure.avatar
             # 如果头像URL不是以http开头，则拼接域名
             if not avatar.lower().startswith(('http://', 'https://')):
-                figure_dict['avatar'] = f"http://180.76.183.241/{avatar.lstrip('/')}"
+                figure_dict['avatar'] = f"{settings.SERVER_DOMAIN}/{avatar.lstrip('/')}"
         processed_figures.append(HistoricalFigureResponse(**figure_dict))
 
     # 计算总页数

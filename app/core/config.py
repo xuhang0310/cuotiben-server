@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # 阿里云API配置
     ALIBABA_CLOUD_API_KEY: str = os.getenv("ALIBABA_CLOUD_API_KEY", "")
 
+    # 服务器域名配置
+    SERVER_DOMAIN: str = os.getenv("SERVER_DOMAIN", "http://180.76.183.241")
+
     # Pydantic v2 configuration
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

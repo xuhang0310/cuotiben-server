@@ -10,11 +10,12 @@ from app.schemas.conversation import (
 )
 from app.services.conversation import (
     get_conversation, get_conversations, create_conversation, update_conversation, delete_conversation,
-    get_conversation_member, get_conversation_members, add_conversation_member, 
+    get_conversation_member, get_conversation_members, add_conversation_member,
     update_conversation_member, remove_conversation_member, get_user_conversations,
     get_chat_messages, create_chat_message, update_chat_message, delete_chat_message,
     get_user_messages, remove_user_from_conversation
 )
+from app.core.config import settings
 
 router = APIRouter(prefix="", tags=["conversations"])
 
@@ -250,7 +251,7 @@ def read_messages(
             avatar = message.avatar
             # 如果头像URL不是以http开头，则拼接域名
             if not avatar.lower().startswith(('http://', 'https://')):
-                message_dict['avatar'] = f"http://180.76.183.241/{avatar.lstrip('/')}"
+                message_dict['avatar'] = f"{settings.SERVER_DOMAIN}/{avatar.lstrip('/')}"
         processed_messages.append(ChatMessageResponse(**message_dict))
 
     # 计算总页数
