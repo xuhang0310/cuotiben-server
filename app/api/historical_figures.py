@@ -71,7 +71,7 @@ def read_figures(
             avatar = figure.avatar
             # 如果头像URL不是以http开头，则拼接域名
             if not avatar.lower().startswith(('http://', 'https://')):
-                figure_dict['avatar'] = f"http://180.76.183.241:8000/{avatar.lstrip('/')}"
+                figure_dict['avatar'] = f"http://180.76.183.241/{avatar.lstrip('/')}"
         processed_figures.append(HistoricalFigureResponse(**figure_dict))
 
     # 计算总页数

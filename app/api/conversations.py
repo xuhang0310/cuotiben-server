@@ -250,7 +250,7 @@ def read_messages(
             avatar = message.avatar
             # 如果头像URL不是以http开头，则拼接域名
             if not avatar.lower().startswith(('http://', 'https://')):
-                message_dict['avatar'] = f"http://180.76.183.241:8000/{avatar.lstrip('/')}"
+                message_dict['avatar'] = f"http://180.76.183.241/{avatar.lstrip('/')}"
         processed_messages.append(ChatMessageResponse(**message_dict))
 
     # 计算总页数
