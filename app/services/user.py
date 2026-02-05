@@ -203,6 +203,32 @@ def verify_and_create_user(db: Session, email: str, verification_code: str, user
     # First verify the code
     if not verify_email_code(email, verification_code):
         return None
-    
+
     # Then create the user
     return create_user(db, user_create)
+
+
+# JWT authentication helper
+def get_current_user(token: str, db: Session):
+    from fastapi import HTTPException
+    from jose import jwt
+    from app.schemas.user import TokenData
+    from app.core.config import settings
+
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        token_data = TokenData(email=email)
+    except jwt.JWTError:
+        raise credentials_exception
+    user = get_user_by_email(db, email=token_data.email)
+    if user is None:
+        raise credentials_exception
+    return user

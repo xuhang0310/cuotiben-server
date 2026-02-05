@@ -12,6 +12,7 @@ class AiChatGroup(Base):
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     status = Column(Enum('active', 'inactive', name='group_status_enum'), default='active', comment='群聊状态')
+    user_id = Column(Integer, nullable=True, comment='创建人id')
 
 
 class AiGroupMember(Base):
@@ -20,10 +21,12 @@ class AiGroupMember(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     group_id = Column(Integer, nullable=False, comment='群聊ID')
     ai_model = Column(String(100), nullable=False, comment='底层AI模型')
-    ai_nickname = Column(String(100), nullable=False, comment='AI昵称')
+    ai_nickname = Column(String(100), nullable=False, comment='AI昵称，当member_type=0的时候 ，从users中取值；')
     personality = Column(String(255), nullable=False, comment='个性设置')
     initial_stance = Column(Text, comment='初始立场')
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    user_id = Column(Integer, nullable=True, comment='当member_type=1的时候 ，从ai_models中取值；')
+    member_type = Column(Integer, nullable=True, comment='0 人  1 AI')
 
 
 class AiMessage(Base):

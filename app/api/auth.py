@@ -113,31 +113,15 @@ def login_user(user_login: UserLogin, db: Session = Depends(get_db)):
 
 
 # JWT authentication helper
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-        token_data = TokenData(email=email)
-    except jwt.JWTError:
-        raise credentials_exception
-    # We'll get the db session inside the function that uses this dependency
-    return token_data
+def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    from app.services.user import get_current_user
+    return get_current_user(token, db)
 
 
 @router.get("/me", response_model=UserResponse)
-def read_users_me(token_data: TokenData = Depends(get_current_user), db: Session = Depends(get_db)):
+def read_users_me(current_user: UserResponse = Depends(get_current_user_from_token)):
     """Get current user info"""
-    user = get_user_by_email(db, email=token_data.email)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    return current_user
 
 
 # Request password reset
@@ -167,15 +151,10 @@ def reset_user_password(password_reset: PasswordReset, db: Session = Depends(get
 @router.put("/profile", response_model=UserResponse)
 def update_profile(
     user_update: UserUpdate,
-    token_data: TokenData = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user_from_token),
     db: Session = Depends(get_db)
 ):
     """Update user profile"""
-    # Get the user by email from token data
-    current_user = get_user_by_email(db, email=token_data.email)
-    if not current_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
     updated_user = update_user(db, current_user.id, user_update)
     if not updated_user:
         raise HTTPException(status_code=404, detail="User not found")

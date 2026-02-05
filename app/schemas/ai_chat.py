@@ -7,6 +7,7 @@ from datetime import datetime
 class AiChatGroupBase(BaseModel):
     name: str
     status: Optional[str] = "active"
+    user_id: Optional[int] = None
 
 
 class AiChatGroupCreate(AiChatGroupBase):
@@ -16,6 +17,7 @@ class AiChatGroupCreate(AiChatGroupBase):
 class AiChatGroupUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
+    user_id: Optional[int] = None
 
 
 class AiChatGroupResponse(AiChatGroupBase):
@@ -34,6 +36,8 @@ class AiGroupMemberBase(BaseModel):
     ai_nickname: str
     personality: str
     initial_stance: Optional[str] = None
+    user_id: Optional[int] = None
+    member_type: Optional[int] = None  # 0 for human, 1 for AI
 
 
 class AiGroupMemberCreate(AiGroupMemberBase):
@@ -45,6 +49,8 @@ class AiGroupMemberUpdate(BaseModel):
     ai_nickname: Optional[str] = None
     personality: Optional[str] = None
     initial_stance: Optional[str] = None
+    user_id: Optional[int] = None
+    member_type: Optional[int] = None
 
 
 class AiGroupMemberResponse(AiGroupMemberBase):

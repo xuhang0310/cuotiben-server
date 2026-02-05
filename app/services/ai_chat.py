@@ -16,12 +16,15 @@ def get_ai_chat_group(db: Session, group_id: int):
     return db.query(AiChatGroup).filter(AiChatGroup.id == group_id).first()
 
 
-def get_ai_chat_groups(db: Session, skip: int = 0, limit: int = 10, status: Optional[str] = None):
-    """获取群聊列表（支持分页和状态筛选）"""
+def get_ai_chat_groups(db: Session, skip: int = 0, limit: int = 10, status: Optional[str] = None, user_id: Optional[int] = None):
+    """获取群聊列表（支持分页、状态筛选和用户筛选）"""
     query = db.query(AiChatGroup)
 
     if status:
         query = query.filter(AiChatGroup.status == status)
+
+    if user_id is not None:
+        query = query.filter(AiChatGroup.user_id == user_id)
 
     total = query.count()
     groups = query.order_by(desc(AiChatGroup.updated_at)).offset(skip).limit(limit).all()
@@ -64,9 +67,13 @@ def get_ai_group_member(db: Session, member_id: int):
     return db.query(AiGroupMember).filter(AiGroupMember.id == member_id).first()
 
 
-def get_ai_group_members(db: Session, group_id: int, skip: int = 0, limit: int = 10):
-    """获取群成员列表（支持分页）"""
+def get_ai_group_members(db: Session, group_id: int, skip: int = 0, limit: int = 10, member_type: Optional[int] = None):
+    """获取群成员列表（支持分页和成员类型筛选）"""
     query = db.query(AiGroupMember).filter(AiGroupMember.group_id == group_id)
+
+    if member_type is not None:
+        query = query.filter(AiGroupMember.member_type == member_type)
+
     total = query.count()
     members = query.offset(skip).limit(limit).all()
     return members, total

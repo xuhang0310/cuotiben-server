@@ -15,15 +15,32 @@ from app.services.ai_chat import (
     get_ai_message, get_ai_messages, create_ai_message, update_ai_message, delete_ai_message,
     get_ai_model, get_ai_models, create_ai_model, update_ai_model, delete_ai_model
 )
+from app.core.middleware import JWTBearer
+from app.schemas.user import TokenData
+from app.services.user import get_current_user
+
+# JWT authentication
+oauth2_scheme = JWTBearer()
 
 router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 
+# Dependency to get current user from JWT token
+def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    return get_current_user(token, db)
+
+
 # AI Chat Group Endpoints
 @router.post("/groups/", response_model=AiChatGroupResponse)
-def create_ai_chat_group_endpoint(group: AiChatGroupCreate, db: Session = Depends(get_db)):
+def create_ai_chat_group_endpoint(
+    group: AiChatGroupCreate,
+    current_user = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
     """创建新群聊"""
-    return create_ai_chat_group(db=db, group=group)
+    # Automatically set the user_id from the authenticated user
+    group_with_user = group.model_copy(update={"user_id": current_user.id})
+    return create_ai_chat_group(db=db, group=group_with_user)
 
 
 @router.get("/groups/{group_id}", response_model=AiChatGroupResponse)
@@ -37,9 +54,18 @@ def read_ai_chat_group(group_id: int, db: Session = Depends(get_db)):
 
 @router.put("/groups/{group_id}", response_model=AiChatGroupResponse)
 def update_ai_chat_group_endpoint(
-    group_id: int, group_update: AiChatGroupUpdate, db: Session = Depends(get_db)
+    group_id: int,
+    group_update: AiChatGroupUpdate,
+    current_user = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
 ):
     """更新群聊信息"""
+    # Verify that the user owns the group
+    db_group = get_ai_chat_group(db=db, group_id=group_id)
+    if db_group and db_group.user_id:
+        if db_group.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="无权限修改此群聊")
+
     db_group = update_ai_chat_group(db=db, group_id=group_id, group_update=group_update)
     if db_group is None:
         raise HTTPException(status_code=404, detail="群聊不存在")
@@ -47,8 +73,18 @@ def update_ai_chat_group_endpoint(
 
 
 @router.delete("/groups/{group_id}")
-def delete_ai_chat_group_endpoint(group_id: int, db: Session = Depends(get_db)):
+def delete_ai_chat_group_endpoint(
+    group_id: int,
+    current_user = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
     """删除群聊"""
+    # Verify that the user owns the group
+    db_group = get_ai_chat_group(db=db, group_id=group_id)
+    if db_group and db_group.user_id:
+        if db_group.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="无权限删除此群聊")
+
     db_group = delete_ai_chat_group(db=db, group_id=group_id)
     if db_group is None:
         raise HTTPException(status_code=404, detail="群聊不存在")
@@ -60,10 +96,16 @@ def read_ai_chat_groups(
     skip: int = Query(0, ge=0, description="跳过的记录数"),
     limit: int = Query(10, ge=1, le=100, description="每页显示的记录数"),
     status: Optional[str] = Query(None, description="群聊状态筛选"),
+    user_id: Optional[int] = Query(None, description="创建人ID筛选"),
+    current_user = Depends(get_current_user_from_token),
     db: Session = Depends(get_db)
 ):
-    """获取群聊列表（支持分页和状态筛选）"""
-    groups, total = get_ai_chat_groups(db=db, skip=skip, limit=limit, status=status)
+    """获取群聊列表（支持分页、状态筛选和用户筛选）"""
+    # If user_id is not provided in query, use the authenticated user's ID
+    if user_id is None:
+        user_id = current_user.id
+
+    groups, total = get_ai_chat_groups(db=db, skip=skip, limit=limit, status=status, user_id=user_id)
 
     # 计算总页数
     pages = (total + limit - 1) // limit
@@ -118,10 +160,11 @@ def read_ai_group_members(
     group_id: int,
     skip: int = Query(0, ge=0, description="跳过的记录数"),
     limit: int = Query(10, ge=1, le=100, description="每页显示的记录数"),
+    member_type: Optional[int] = Query(None, description="成员类型筛选：0为人，1为AI"),
     db: Session = Depends(get_db)
 ):
-    """获取群成员列表（支持分页）"""
-    members, total = get_ai_group_members(db=db, group_id=group_id, skip=skip, limit=limit)
+    """获取群成员列表（支持分页和成员类型筛选）"""
+    members, total = get_ai_group_members(db=db, group_id=group_id, skip=skip, limit=limit, member_type=member_type)
 
     # 计算总页数
     pages = (total + limit - 1) // limit
