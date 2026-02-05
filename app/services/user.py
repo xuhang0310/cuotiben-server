@@ -168,9 +168,13 @@ def verify_email_code(email: str, code: str) -> bool:
         del verification_codes_store[email]  # Clean up expired code
         return False
 
-    # Check if code matches
-    if stored_data['code'] != code:
-        logger.warning(f"Verification code mismatch for email: {email}. Expected: {stored_data['code']}, Got: {code}")
+    # Check if code matches - convert both to string to ensure proper comparison
+    stored_code_str = str(stored_data['code'])
+    input_code_str = str(code)
+    logger.debug(f"Comparing verification codes - Stored type: {type(stored_data['code'])}, Input type: {type(code)}")
+    logger.debug(f"Stored code repr: {repr(stored_data['code'])}, Input code repr: {repr(code)}")
+    if stored_code_str != input_code_str:
+        logger.warning(f"Verification code mismatch for email: {email}. Expected: {stored_code_str}, Got: {input_code_str}")
         return False
 
     # Clean up the verified code
