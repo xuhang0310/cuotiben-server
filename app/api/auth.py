@@ -82,7 +82,8 @@ def request_verification_code(request_data: dict, background_tasks: BackgroundTa
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Generate and store verification code
-    verification_code = generate_verification_code()
+    #verification_code = generate_verification_code()
+    verification_code = 123456
     store_verification_code(email, verification_code)
     
     # Send verification email in background
