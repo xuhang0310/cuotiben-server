@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
@@ -10,6 +11,8 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserLogin, TokenData
 from app.core.config import settings
 from app.utils.email_service import send_verification_email, send_password_reset_email
+
+logger = logging.getLogger(__name__)
 
 # Simple in-memory store for verification codes (in production, use Redis or database)
 verification_codes_store = {}
@@ -150,21 +153,28 @@ def store_verification_code(email: str, code: str, expiry_minutes: int = 10):
 
 def verify_email_code(email: str, code: str) -> bool:
     """Verify the email verification code."""
+    logger.info(f"Attempting to verify email code for: {email}")
+    
     if email not in verification_codes_store:
+        logger.warning(f"No verification code found for email: {email}")
         return False
 
     stored_data = verification_codes_store[email]
+    logger.info(f"Found stored verification data for email: {email}")
 
     # Check if code has expired
     if time.time() > stored_data['expires_at']:
+        logger.warning(f"Verification code expired for email: {email}")
         del verification_codes_store[email]  # Clean up expired code
         return False
 
     # Check if code matches
     if stored_data['code'] != code:
+        logger.warning(f"Verification code mismatch for email: {email}. Expected: {stored_data['code']}, Got: {code}")
         return False
 
     # Clean up the verified code
+    logger.info(f"Successfully verified email code for: {email}")
     del verification_codes_store[email]
     return True
 

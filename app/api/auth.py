@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database.session import get_db
@@ -15,6 +16,8 @@ from app.core.config import settings
 from datetime import timedelta
 from typing import Optional
 from jose import jwt
+
+logger = logging.getLogger(__name__)
 
 # OAuth2 scheme for JWT
 from fastapi.security import OAuth2PasswordBearer
@@ -52,8 +55,12 @@ def register_user(user: UserCreate, background_tasks: BackgroundTasks, db: Sessi
 def verify_and_register_user(user: UserCreate, verification_data: EmailVerification, db: Session = Depends(get_db)):
     """Verify email with code and create user account in one step"""
     # Verify the email code
+    logger.info(f"Verifying email code for: {verification_data.email}")
     if not verify_email_code(verification_data.email, verification_data.verification_code):
+        logger.warning(f"Invalid or expired verification code for email: {verification_data.email}")
         raise HTTPException(status_code=400, detail="Invalid or expired verification code")
+    else:
+        logger.info(f"Successfully verified email code for: {verification_data.email}")
     
     # Check if user already exists
     existing_user = get_user_by_email(db, verification_data.email)
@@ -73,22 +80,29 @@ def verify_and_register_user(user: UserCreate, verification_data: EmailVerificat
 def request_verification_code(request_data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Request a new verification code for an email"""
     email = request_data.get("email")
+    logger.info(f"Received request for verification code for email: {email}")
+    
     if not email:
+        logger.warning("Email is required but not provided")
         raise HTTPException(status_code=400, detail="Email is required")
     
     # Check if user already exists
     existing_user = get_user_by_email(db, email)
     if existing_user:
+        logger.warning(f"Attempt to request verification code for already registered email: {email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Generate and store verification code
     #verification_code = generate_verification_code()
     verification_code = 123456
+    logger.info(f"Generated verification code for email: {email}")
     store_verification_code(email, verification_code)
     
     # Send verification email in background
+    logger.info(f"Scheduling verification email for: {email}")
     background_tasks.add_task(send_verification_email, email, verification_code)
     
+    logger.info(f"Verification code request completed for: {email}")
     return {"message": f"Verification code sent to {email}"}
 
 
