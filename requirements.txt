@@ -28,6 +28,12 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 cryptography==41.0.7
 
+# 邮箱验证
+email-validator==2.2.0
+
+# 腾讯云服务
+tencentcloud-sdk-python==3.0.800
+
 # 表单处理
 python-multipart==0.0.6
 

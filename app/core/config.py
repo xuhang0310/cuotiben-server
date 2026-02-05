@@ -27,6 +27,17 @@ class Settings(BaseSettings):
     # 服务器域名配置
     SERVER_DOMAIN: str = os.getenv("SERVER_DOMAIN", "http://180.76.183.241")
 
+    # SMTP配置 (Tencent Cloud Email)
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.tencent.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")  # 授权码
+
+    # Tencent Cloud Email API配置 (用于模板发送)
+    TENCENT_EMAIL_APP_ID: str = os.getenv("TENCENT_EMAIL_APP_ID", "")
+    TENCENT_EMAIL_APP_KEY: str = os.getenv("TENCENT_EMAIL_APP_KEY", "")
+    TENCENT_EMAIL_SENDER: str = os.getenv("TENCENT_EMAIL_SENDER", "")
+
     # Pydantic v2 configuration
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
