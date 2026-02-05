@@ -10,7 +10,6 @@ from typing import Optional
 
 import logging
 logger = logging.getLogger(__name__)
-
 class JWTBearer(HTTPBearer):
     def __init__(self, auto_error: bool = True):
         super(JWTBearer, self).__init__(auto_error=auto_error)
@@ -24,7 +23,7 @@ class JWTBearer(HTTPBearer):
             )
 
         token = credentials.credentials
-        logger.info(f"Validating JWT token: {token}")
+        logger.info(f"Validating JWT token: {token[:10]}...")
 
         # Verify the token
         payload = verify_token(token)

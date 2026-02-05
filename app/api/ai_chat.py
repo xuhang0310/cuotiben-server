@@ -18,6 +18,8 @@ from app.services.ai_chat import (
 from app.core.middleware import JWTBearer
 from app.schemas.user import TokenData
 from app.services.user import get_current_user
+import logging
+logger = logging.getLogger(__name__)
 
 # JWT authentication
 oauth2_scheme = JWTBearer()
@@ -27,6 +29,7 @@ router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 # Dependency to get current user from JWT token
 def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    logger.info(f"Getting current user from token: {token[:10]}...")
     return get_current_user(token, db)
 
 
