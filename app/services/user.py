@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import jwt
+from jose import jwt
 import secrets
 from typing import Optional
 import time
@@ -37,7 +37,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

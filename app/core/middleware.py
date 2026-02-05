@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.security.http import HTTPBase
-import jwt
+from jose import jwt
 from app.core.config import settings
 from app.services.user import verify_token
 from app.schemas.user import TokenData
@@ -20,9 +20,9 @@ class JWTBearer(HTTPBearer):
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         token = credentials.credentials
-        
+
         # Verify the token
         payload = verify_token(token)
         if payload is None:
@@ -31,7 +31,7 @@ class JWTBearer(HTTPBearer):
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(
@@ -39,6 +39,6 @@ class JWTBearer(HTTPBearer):
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         token_data = TokenData(email=email)
         return token_data

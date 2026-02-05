@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.schemas.user import (
-    UserCreate, UserUpdate, UserLogin, UserResponse, 
+    UserCreate, UserUpdate, UserLogin, UserResponse,
     Token, PasswordResetRequest, PasswordReset, EmailVerification
 )
 from app.services.user import (
-    authenticate_user, create_user, get_user_by_email, get_user_by_id, 
+    authenticate_user, create_user, get_user_by_email, get_user_by_id,
     update_user, generate_verification_code, store_verification_code,
     verify_email_code, request_password_reset, reset_password, create_access_token
 )
@@ -14,7 +14,7 @@ from app.utils.email_service import send_verification_email
 from app.core.config import settings
 from datetime import timedelta
 from typing import Optional
-import jwt
+from jose import jwt
 
 # OAuth2 scheme for JWT
 from fastapi.security import OAuth2PasswordBearer
