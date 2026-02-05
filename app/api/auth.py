@@ -41,12 +41,11 @@ def register_user(user: UserCreate, background_tasks: BackgroundTasks, db: Sessi
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Validate password length before proceeding
-    password_bytes = user.password.encode('utf-8')
-    if len(password_bytes) > 72:
-        logger.warning(f"Password for user {user.email} exceeds 72 bytes ({len(password_bytes)} bytes)")
+    if len(user.password) > 128:
+        logger.warning(f"Password for user {user.email} is very long ({len(user.password)} characters)")
         raise HTTPException(
             status_code=400, 
-            detail="Password is too long. Maximum allowed length is 72 bytes."
+            detail="Password is too long. Maximum recommended length is 128 characters."
         )
     
     # Generate verification code
@@ -86,12 +85,11 @@ def verify_and_register_user(user: UserCreate, verification_data: EmailVerificat
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Validate password length before creating user
-    password_bytes = user.password.encode('utf-8')
-    if len(password_bytes) > 72:
-        logger.warning(f"Password for user {verification_data.email} exceeds 72 bytes ({len(password_bytes)} bytes)")
+    if len(user.password) > 128:
+        logger.warning(f"Password for user {verification_data.email} is very long ({len(user.password)} characters)")
         raise HTTPException(
             status_code=400, 
-            detail="Password is too long. Maximum allowed length is 72 bytes."
+            detail="Password is too long. Maximum recommended length is 128 characters."
         )
     
     # Create the user
@@ -146,12 +144,11 @@ def login_user(user_login: UserLogin, db: Session = Depends(get_db)):
     logger.info(f"Login attempt for email: {user_login.email}")
     
     # Validate password length before attempting authentication
-    password_bytes = user_login.password.encode('utf-8')
-    if len(password_bytes) > 72:
-        logger.warning(f"Login attempt with password exceeding 72 bytes for email: {user_login.email}")
+    if len(user_login.password) > 128:
+        logger.warning(f"Login attempt with very long password ({len(user_login.password)} chars) for email: {user_login.email}")
         raise HTTPException(
             status_code=400, 
-            detail="Password is too long. Maximum allowed length is 72 bytes."
+            detail="Password is too long. Maximum recommended length is 128 characters."
         )
     
     user = authenticate_user(db, user_login.email, user_login.password)

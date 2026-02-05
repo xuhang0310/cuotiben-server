@@ -23,10 +23,13 @@ import warnings
 # Suppress the specific bcrypt warning
 warnings.filterwarnings("ignore", message=".*bcrypt.*__about__.*")
 
-# Password hashing context - using multiple schemes as fallback
+# Password hashing context - prioritize argon2, fallback to bcrypt
 pwd_context = CryptContext(
-    schemes=["bcrypt", "argon2", "pbkdf2_sha256"],
+    schemes=["argon2", "bcrypt", "pbkdf2_sha256"],
     deprecated="auto",
+    argon2__memory_cost=65536,  # 64 MB
+    argon2__time_cost=3,        # 3 iterations
+    argon2__parallelism=2,      # 2 threads
     bcrypt__ident="2b",
     bcrypt__rounds=12
 )
@@ -35,12 +38,7 @@ pwd_context = CryptContext(
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
     try:
-        # Ensure password is not longer than 72 bytes for bcrypt
-        password_bytes = plain_password.encode('utf-8')
-        if len(password_bytes) > 72:
-            logger.warning(f"Truncating password for verification (length: {len(password_bytes)} bytes)")
-            # Truncate to 72 bytes if necessary
-            plain_password = password_bytes[:72].decode('utf-8', errors='ignore')
+        logger.debug(f"Verifying password (length: {len(plain_password)} chars)")
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
         # Log the error for debugging
@@ -52,13 +50,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a plain password."""
     try:
-        logger.info(f"Hashing password for user {password}")
-        # Ensure password is not longer than 72 bytes for bcrypt
-        password_bytes = password.encode('utf-8')
-        if len(password_bytes) > 72:
-            logger.warning(f"Truncating password for hashing (length: {len(password_bytes)} bytes)")
-            # Truncate to 72 bytes if necessary
-            password = password_bytes[:72].decode('utf-8', errors='ignore')
+        logger.info(f"Hashing password (length: {len(password)} chars)")
+        # Check for suspiciously long passwords
+        if len(password) > 128:
+            logger.warning(f"Password is very long ({len(password)} characters), please verify")
+        
         return pwd_context.hash(password)
     except Exception as e:
         # Log the error for debugging
