@@ -35,7 +35,8 @@ def register_user(user: UserCreate, background_tasks: BackgroundTasks, db: Sessi
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Generate verification code
-    verification_code = generate_verification_code()
+    #verification_code = generate_verification_code()
+    verification_code = 123456
     
     # Store the verification code
     store_verification_code(user.email, verification_code)

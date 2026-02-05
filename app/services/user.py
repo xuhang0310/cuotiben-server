@@ -16,18 +16,45 @@ verification_codes_store = {}
 password_reset_tokens_store = {}
 
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context - using multiple schemes as fallback
+pwd_context = CryptContext(
+    schemes=["bcrypt", "argon2", "pbkdf2_sha256"],
+    deprecated="auto",
+    bcrypt__ident="2b",
+    bcrypt__rounds=12
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # Ensure password is not longer than 72 bytes for bcrypt
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 72:
+            # Truncate to 72 bytes if necessary
+            plain_password = password_bytes[:72].decode('utf-8', errors='ignore')
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Password verification error: {e}")
+        # Return False in case of any error during verification
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """Hash a plain password."""
-    return pwd_context.hash(password)
+    try:
+        # Ensure password is not longer than 72 bytes for bcrypt
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 72:
+            # Truncate to 72 bytes if necessary
+            password = password_bytes[:72].decode('utf-8', errors='ignore')
+        return pwd_context.hash(password)
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Password hashing error: {e}")
+        # Re-raise the exception since we can't continue without proper hashing
+        raise
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
