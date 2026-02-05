@@ -25,8 +25,9 @@ pillow==11.0.0
 
 # 安全与加密
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+passlib[argon2,bcrypt]==1.7.4
 cryptography==41.0.7
+argon2-cffi==25.1.0
 
 # 邮箱验证
 email-validator==2.2.0
