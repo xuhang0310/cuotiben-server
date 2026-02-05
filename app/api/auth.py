@@ -32,10 +32,22 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/register", response_model=UserResponse)
 def register_user(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Register a new user with email verification"""
+    logger.info(f"Starting registration process for email: {user.email}")
+    
     # Check if user already exists
     existing_user = get_user_by_email(db, user.email)
     if existing_user:
+        logger.warning(f"Registration attempted for already existing email: {user.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Validate password length before proceeding
+    password_bytes = user.password.encode('utf-8')
+    if len(password_bytes) > 72:
+        logger.warning(f"Password for user {user.email} exceeds 72 bytes ({len(password_bytes)} bytes)")
+        raise HTTPException(
+            status_code=400, 
+            detail="Password is too long. Maximum allowed length is 72 bytes."
+        )
     
     # Generate verification code
     #verification_code = generate_verification_code()
@@ -45,15 +57,19 @@ def register_user(user: UserCreate, background_tasks: BackgroundTasks, db: Sessi
     store_verification_code(user.email, verification_code)
     
     # Send verification email in background
+    logger.info(f"Scheduling verification email for: {user.email}")
     background_tasks.add_task(send_verification_email, user.email, verification_code)
     
     # Return success message (user will be created after verification)
+    logger.info(f"Verification code sent to {user.email}")
     raise HTTPException(status_code=200, detail=f"Verification code sent to {user.email}")
 
 
 @router.post("/verify-and-register", response_model=UserResponse)
 def verify_and_register_user(user: UserCreate, verification_data: EmailVerification, db: Session = Depends(get_db)):
     """Verify email with code and create user account in one step"""
+    logger.info(f"Starting verify and register process for email: {verification_data.email}")
+    
     # Verify the email code
     logger.info(f"Verifying email code for: {verification_data.email}")
     if not verify_email_code(verification_data.email, verification_data.verification_code):
@@ -63,16 +79,33 @@ def verify_and_register_user(user: UserCreate, verification_data: EmailVerificat
         logger.info(f"Successfully verified email code for: {verification_data.email}")
     
     # Check if user already exists
+    logger.info(f"Checking if user already exists for email: {verification_data.email}")
     existing_user = get_user_by_email(db, verification_data.email)
     if existing_user:
+        logger.warning(f"User already exists for email: {verification_data.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Validate password length before creating user
+    password_bytes = user.password.encode('utf-8')
+    if len(password_bytes) > 72:
+        logger.warning(f"Password for user {verification_data.email} exceeds 72 bytes ({len(password_bytes)} bytes)")
+        raise HTTPException(
+            status_code=400, 
+            detail="Password is too long. Maximum allowed length is 72 bytes."
+        )
+    
     # Create the user
+    logger.info(f"Creating user account for: {verification_data.email}")
     try:
         db_user = create_user(db, user)
+        logger.info(f"Successfully created user account for: {verification_data.email}")
         return db_user
     except ValueError as e:
+        logger.error(f"ValueError during user creation for {verification_data.email}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during user creation for {verification_data.email}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error during user registration")
 
 
 # Separate endpoint for requesting verification code
@@ -110,13 +143,27 @@ def request_verification_code(request_data: dict, background_tasks: BackgroundTa
 @router.post("/login", response_model=Token)
 def login_user(user_login: UserLogin, db: Session = Depends(get_db)):
     """Login user with email and password"""
+    logger.info(f"Login attempt for email: {user_login.email}")
+    
+    # Validate password length before attempting authentication
+    password_bytes = user_login.password.encode('utf-8')
+    if len(password_bytes) > 72:
+        logger.warning(f"Login attempt with password exceeding 72 bytes for email: {user_login.email}")
+        raise HTTPException(
+            status_code=400, 
+            detail="Password is too long. Maximum allowed length is 72 bytes."
+        )
+    
     user = authenticate_user(db, user_login.email, user_login.password)
     if not user:
+        logger.info(f"Login failed for email: {user_login.email} - incorrect email or password")
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    logger.info(f"Login successful for email: {user_login.email}")
     
     # Create access token
     access_token_data = {"sub": user.email}
@@ -125,6 +172,7 @@ def login_user(user_login: UserLogin, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     
+    logger.info(f"Access token generated for email: {user_login.email}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 

@@ -52,6 +52,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a plain password."""
     try:
+        logger.info(f"Hashing password for user {password}")
         # Ensure password is not longer than 72 bytes for bcrypt
         password_bytes = password.encode('utf-8')
         if len(password_bytes) > 72:
