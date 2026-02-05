@@ -19,6 +19,10 @@ verification_codes_store = {}
 password_reset_tokens_store = {}
 
 
+import warnings
+# Suppress the specific bcrypt warning
+warnings.filterwarnings("ignore", message=".*bcrypt.*__about__.*")
+
 # Password hashing context - using multiple schemes as fallback
 pwd_context = CryptContext(
     schemes=["bcrypt", "argon2", "pbkdf2_sha256"],
@@ -34,12 +38,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         # Ensure password is not longer than 72 bytes for bcrypt
         password_bytes = plain_password.encode('utf-8')
         if len(password_bytes) > 72:
+            logger.warning(f"Truncating password for verification (length: {len(password_bytes)} bytes)")
             # Truncate to 72 bytes if necessary
             plain_password = password_bytes[:72].decode('utf-8', errors='ignore')
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
         # Log the error for debugging
-        print(f"Password verification error: {e}")
+        logger.error(f"Password verification error: {e}")
         # Return False in case of any error during verification
         return False
 
@@ -50,12 +55,13 @@ def get_password_hash(password: str) -> str:
         # Ensure password is not longer than 72 bytes for bcrypt
         password_bytes = password.encode('utf-8')
         if len(password_bytes) > 72:
+            logger.warning(f"Truncating password for hashing (length: {len(password_bytes)} bytes)")
             # Truncate to 72 bytes if necessary
             password = password_bytes[:72].decode('utf-8', errors='ignore')
         return pwd_context.hash(password)
     except Exception as e:
         # Log the error for debugging
-        print(f"Password hashing error: {e}")
+        logger.error(f"Password hashing error: {e}")
         # Re-raise the exception since we can't continue without proper hashing
         raise
 
@@ -84,16 +90,29 @@ def verify_token(token: str) -> Optional[dict]:
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     """Get a user by email."""
-    return db.query(User).filter(User.email == email).first()
+    logger.debug(f"Querying user by email: {email}")
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        logger.debug(f"User found for email: {email}")
+    else:
+        logger.debug(f"No user found for email: {email}")
+    return user
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
     """Get a user by ID."""
-    return db.query(User).filter(User.id == user_id).first()
+    logger.debug(f"Querying user by ID: {user_id}")
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        logger.debug(f"User found for ID: {user_id}")
+    else:
+        logger.debug(f"No user found for ID: {user_id}")
+    return user
 
 
 def create_user(db: Session, user: UserCreate) -> User:
     """Create a new user."""
+    logger.info(f"Creating new user with email: {user.email}")
     # Hash the password
     hashed_password = get_password_hash(user.password)
     
@@ -105,35 +124,50 @@ def create_user(db: Session, user: UserCreate) -> User:
     )
     
     try:
+        logger.debug(f"Adding user {user.email} to database")
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+        logger.info(f"Successfully created user with email: {user.email}")
         return db_user
-    except IntegrityError:
+    except IntegrityError as e:
+        logger.error(f"Failed to create user {user.email}: IntegrityError - {str(e)}")
         db.rollback()
         raise ValueError("Email or username already exists")
 
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     """Authenticate a user by email and password."""
+    logger.debug(f"Authenticating user with email: {email}")
     user = get_user_by_email(db, email)
-    if not user or not verify_password(password, user.password_hash):
+    if not user:
+        logger.info(f"Authentication failed - no user found with email: {email}")
         return None
+        
+    if not verify_password(password, user.password_hash):
+        logger.info(f"Authentication failed - invalid password for email: {email}")
+        return None
+        
+    logger.info(f"Successfully authenticated user with email: {email}")
     return user
 
 
 def update_user(db: Session, user_id: int, user_update: UserUpdate) -> Optional[User]:
     """Update a user's information."""
+    logger.info(f"Updating user with ID: {user_id}")
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
+        logger.warning(f"User with ID {user_id} not found for update")
         return None
     
     update_data = user_update.model_dump(exclude_unset=True)
+    logger.debug(f"Update data for user {user_id}: {update_data}")
     for field, value in update_data.items():
         setattr(db_user, field, value)
     
     db.commit()
     db.refresh(db_user)
+    logger.info(f"Successfully updated user with ID: {user_id}")
     return db_user
 
 
