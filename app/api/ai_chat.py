@@ -28,9 +28,19 @@ router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 
 # Dependency to get current user from JWT token
-def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    logger.info(f"Getting current user from token: {token[:10]}...")
-    return get_current_user(token, db)
+def get_current_user_from_token(token_data: TokenData = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    logger.info(f"Getting current user from token data: {token_data.email}")
+    # Extract the email from token_data and get the user from DB
+    from app.services.user import get_user_by_email
+    user = get_user_by_email(db, email=token_data.email)
+    if user is None:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 
 # AI Chat Group Endpoints
