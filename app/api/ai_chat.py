@@ -233,9 +233,39 @@ def read_ai_group_members(
 
 # AI Message Endpoints
 @router.post("/messages/", response_model=AiMessageResponse)
-def create_ai_message_endpoint(message: AiMessageCreate, db: Session = Depends(get_db)):
+def create_ai_message_endpoint(
+    message: AiMessageCreate,
+    current_user = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
     """创建新消息"""
-    return create_ai_message(db=db, message=message)
+    from app.models.ai_chat import AiGroupMember
+    from app.services.user import get_user_by_email
+    
+    # 获取当前用户
+    user = get_user_by_email(db, current_user.email)
+    
+    # 根据group_id和user_id从ai_group_members表中获取member_type=0的记录
+    group_member = db.query(AiGroupMember)\
+        .filter(AiGroupMember.group_id == message.group_id)\
+        .filter(AiGroupMember.user_id == user.id)\
+        .filter(AiGroupMember.member_type == 0)\
+        .first()
+    
+    if not group_member:
+        raise HTTPException(
+            status_code=404,
+            detail="Group member not found for the user in this group"
+        )
+    
+    # 更新message的member_id为找到的group_member的id
+    message_data = message.model_dump()
+    message_data['member_id'] = group_member.id
+    
+    # 创建消息
+    from app.schemas.ai_chat import AiMessageCreate
+    updated_message = AiMessageCreate(**message_data)
+    return create_ai_message(db=db, message=updated_message)
 
 
 @router.get("/messages/{message_id}", response_model=AiMessageResponse)
