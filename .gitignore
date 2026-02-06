@@ -6,3 +6,4 @@ app/core/__pycache__
 *.pyc
 .env
 .env
+*.pid
