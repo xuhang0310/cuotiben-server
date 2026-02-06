@@ -39,6 +39,20 @@ def create_ai_chat_group(db: Session, group: AiChatGroupCreate):
     db.add(db_group)
     db.commit()
     db.refresh(db_group)
+    
+    # 自动将创建者添加为群组成员
+    if group.user_id is not None:
+        member_data = AiGroupMemberCreate(
+            group_id=db_group.id,
+            user_id=group.user_id,
+            ai_model="",  # 对于人类用户不需要AI模型
+            ai_nickname="",  # 对于人类用户不需要AI昵称
+            personality="",  # 对于人类用户不需要个性设置
+            initial_stance="",  # 对于人类用户不需要初始立场
+            member_type=0  # 0表示人类用户
+        )
+        create_ai_group_member(db, member_data)
+    
     return db_group
 
 

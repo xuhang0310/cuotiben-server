@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 
 # 配置日志
@@ -51,6 +54,29 @@ app.mount("/static", StaticFiles(directory="app"), name="static")
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the cuotiben backend API"}
+
+# 全局异常处理器
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request, exc):
+    # 对于401未授权错误，返回包含status字段的响应
+    if exc.status_code == 401:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "status": "error",
+                "code":exc.status_code,
+                "detail": exc.detail if hasattr(exc, 'detail') else "Unauthorized"
+            }
+        )
+    # 对于其他HTTP异常，保持原有行为
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "code":exc.status_code,
+            "detail": exc.detail if hasattr(exc, 'detail') else str(exc)
+        }
+    )
 
 @app.get("/health")
 def health_check():
