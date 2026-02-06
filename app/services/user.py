@@ -1,10 +1,10 @@
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
 import secrets
+import hashlib
 from typing import Optional
 import time
 from app.models.user import User
@@ -19,27 +19,27 @@ verification_codes_store = {}
 password_reset_tokens_store = {}
 
 
-import warnings
-# Suppress the specific bcrypt warning
-warnings.filterwarnings("ignore", message=".*bcrypt.*__about__.*")
-
-# Password hashing context - prioritize argon2, fallback to bcrypt
-pwd_context = CryptContext(
-    schemes=["argon2", "bcrypt", "pbkdf2_sha256"],
-    deprecated="auto",
-    argon2__memory_cost=65536,  # 64 MB
-    argon2__time_cost=3,        # 3 iterations
-    argon2__parallelism=2,      # 2 threads
-    bcrypt__ident="2b",
-    bcrypt__rounds=12
-)
+# Salt generation function
+def generate_salt() -> str:
+    """Generate a random salt for password hashing."""
+    return secrets.token_hex(16)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
     try:
         logger.debug(f"Verifying password (length: {len(plain_password)} chars)")
-        return pwd_context.verify(plain_password, hashed_password)
+        # Extract salt and hash from the stored hashed_password
+        parts = hashed_password.split('$')
+        if len(parts) != 2:
+            return False
+        salt, stored_hash = parts
+        
+        # Hash the plain password with the extracted salt
+        computed_hash = hashlib.md5((plain_password + salt).encode()).hexdigest()
+        
+        # Compare the hashes
+        return computed_hash == stored_hash
     except Exception as e:
         # Log the error for debugging
         logger.error(f"Password verification error: {e}")
@@ -48,14 +48,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a plain password."""
+    """Hash a plain password using MD5 with salt."""
     try:
         logger.info(f"Hashing password (length: {len(password)} chars)")
         # Check for suspiciously long passwords
         if len(password) > 128:
             logger.warning(f"Password is very long ({len(password)} characters), please verify")
         
-        return pwd_context.hash(password)
+        # Generate a salt
+        salt = generate_salt()
+        
+        # Create the hash: MD5(password + salt)
+        password_hash = hashlib.md5((password + salt).encode()).hexdigest()
+        
+        # Return salt and hash combined with a separator
+        return f"{salt}${password_hash}"
     except Exception as e:
         # Log the error for debugging
         logger.error(f"Password hashing error: {e}")
@@ -81,7 +88,8 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except jwt.JWTError:
+    except jwt.JWTError as e:
+        logger.error(f"JWT verification error: {e}")
         return None
 
 

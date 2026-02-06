@@ -8,7 +8,9 @@ from app.schemas.ai_chat import (
     AiMessageCreate, AiMessageUpdate,
     AiModelCreate, AiModelUpdate
 )
+import logging
 
+logger = logging.getLogger(__name__)
 
 # AI Chat Group Services
 def get_ai_chat_group(db: Session, group_id: int):
@@ -25,7 +27,7 @@ def get_ai_chat_groups(db: Session, skip: int = 0, limit: int = 10, status: Opti
 
     if user_id is not None:
         query = query.filter(AiChatGroup.user_id == user_id)
-
+    logger.info(f"Querying AI chat groups with skip={skip}, limit={limit}, status={status}, user_id={user_id}")
     total = query.count()
     groups = query.order_by(desc(AiChatGroup.updated_at)).offset(skip).limit(limit).all()
     return groups, total
