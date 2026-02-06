@@ -24,6 +24,7 @@ class AiChatGroupResponse(AiChatGroupBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    member_count: int = 0  # 新增成员数量字段
 
     class Config:
         from_attributes = True
@@ -56,6 +57,8 @@ class AiGroupMemberUpdate(BaseModel):
 class AiGroupMemberResponse(AiGroupMemberBase):
     id: int
     created_at: datetime
+    avatar: Optional[str] = None
+    avatarColor: Optional[str] = None
 
     class Config:
         from_attributes = True

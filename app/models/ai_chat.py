@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, Enum, BigInteger
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Enum, BigInteger
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy import and_
 from app.database.session import Base
 from typing import Optional
 
@@ -38,6 +40,7 @@ class AiMessage(Base):
     content = Column(Text, nullable=False, comment='消息内容')
     message_type = Column(Enum('text', 'image', 'file', name='message_type_enum'), default='text', comment='消息类型')
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    
 
 
 class AiModel(Base):

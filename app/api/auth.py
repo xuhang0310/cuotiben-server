@@ -170,7 +170,7 @@ def login_user(user_login: UserLogin, db: Session = Depends(get_db)):
     )
     
     logger.info(f"Access token generated for email: {user_login.email}")
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "avatar": f"{settings.SERVER_DOMAIN}/{user.avatar_url}"}
 
 
 # JWT authentication helper

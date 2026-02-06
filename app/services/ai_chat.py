@@ -30,7 +30,18 @@ def get_ai_chat_groups(db: Session, skip: int = 0, limit: int = 10, status: Opti
     logger.info(f"Querying AI chat groups with skip={skip}, limit={limit}, status={status}, user_id={user_id}")
     total = query.count()
     groups = query.order_by(desc(AiChatGroup.updated_at)).offset(skip).limit(limit).all()
-    return groups, total
+    
+    # 为每个群组添加成员数量
+    from sqlalchemy import func
+    enhanced_groups = []
+    for group in groups:
+        # 计算该群组的成员数量
+        member_count = db.query(AiGroupMember).filter(AiGroupMember.group_id == group.id).count()
+        # 手动添加成员数量属性
+        group.member_count = member_count
+        enhanced_groups.append(group)
+    
+    return enhanced_groups, total
 
 
 def create_ai_chat_group(db: Session, group: AiChatGroupCreate):
@@ -85,14 +96,42 @@ def get_ai_group_member(db: Session, member_id: int):
 
 def get_ai_group_members(db: Session, group_id: int, skip: int = 0, limit: int = 10, member_type: Optional[int] = None):
     """获取群成员列表（支持分页和成员类型筛选）"""
+    from app.api.ai_chat import get_personality_info
+    
     query = db.query(AiGroupMember).filter(AiGroupMember.group_id == group_id)
 
     if member_type is not None:
         query = query.filter(AiGroupMember.member_type == member_type)
 
     total = query.count()
-    members = query.offset(skip).limit(limit).all()
-    return members, total
+    raw_members = query.offset(skip).limit(limit).all()
+    
+    # 处理成员数据，添加avatar和avatarColor字段
+    processed_members = []
+    for member in raw_members:
+        # 创建一个字典副本
+        member_dict = member.__dict__.copy()
+        
+        # 移除SQLAlchemy内部属性
+        member_dict.pop('_sa_instance_state', None)
+        
+        # 计算avatar（昵称第一个字符）
+        nickname = member.ai_nickname or str(member.id)  # 如果没有昵称，使用ID
+        avatar = nickname[0].upper() if nickname else None
+        
+        # 计算avatarColor（根据personality获取颜色）
+        _, avatar_color = get_personality_info(member.personality)
+        
+        # 添加新的字段
+        member_dict['avatar'] = avatar
+        member_dict['avatarColor'] = avatar_color
+        
+        # 创建响应对象
+        from app.schemas.ai_chat import AiGroupMemberResponse
+        processed_member = AiGroupMemberResponse(**member_dict)
+        processed_members.append(processed_member)
+    
+    return processed_members, total
 
 
 def create_ai_group_member(db: Session, member: AiGroupMemberCreate):

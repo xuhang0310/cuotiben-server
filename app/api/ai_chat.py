@@ -24,6 +24,46 @@ logger = logging.getLogger(__name__)
 # JWT authentication
 oauth2_scheme = JWTBearer()
 
+def get_personality_info(personality_value: str) -> tuple:
+    """
+    根据个性值获取对应的中文标签和颜色
+    返回 (label, color) 元组
+    """
+    personality_options = [
+            {
+                "label": "严谨 (Rigorous)",
+                "value": "rigorous",
+                "color": "#4caf50",
+                "description": "象征精确、平衡与可靠性"
+            },
+            {
+                "label": "创意 (Creative)",
+                "value": "creative",
+                "color": "#9c27b0",
+                "description": "代表想象力、灵感与艺术性"
+            },
+            {
+                "label": "结构化 (Structured)",
+                "value": "structured",
+                "color": "#2196f3",
+                "description": "体现逻辑、秩序与系统性"
+            },
+            {
+                "label": "苏格拉底式 (Socratic)",
+                "value": "socratic",
+                "color": "#ff9800",
+                "description": "象征启发性、智慧与思辨对话"
+            }
+    ]
+    
+    if personality_value:
+        for option in personality_options:
+            if option['value'] == personality_value:
+                return option['label'], option['color']
+    
+    # 如果没有找到匹配项，返回原始值和默认颜色
+    return personality_value, "#666666"
+
 router = APIRouter(prefix="/ai-chat", tags=["ai-chat"])
 
 
@@ -247,6 +287,68 @@ def read_ai_messages(
         pages=pages,
         data=messages
     )
+
+
+@router.get("/groups/{group_id}/message-list")
+def get_message_list(
+    group_id: int,
+    db: Session = Depends(get_db)
+):
+    """根据群组ID获取消息列表，按指定格式返回"""
+    from app.models.ai_chat import AiMessage, AiGroupMember
+    
+    # 查询消息及关联的成员信息
+    messages = db.query(AiMessage, AiGroupMember)\
+        .join(AiGroupMember, AiMessage.member_id == AiGroupMember.id)\
+        .filter(AiMessage.group_id == group_id)\
+        .order_by(AiMessage.created_at.asc())\
+        .all()
+    
+    result = []
+    for msg, member in messages:
+        # 确定消息类型
+        msg_type = 'ai' if member and member.member_type == 1 else 'user'
+        
+        # 设置消息发送者姓名
+        name = ""
+        if member:
+            if member.member_type == 1:  # AI
+                name = member.ai_nickname
+            elif member.user_id:  # Human user
+                from app.services.user import get_user_by_id
+                user = get_user_by_id(db, member.user_id)
+                if user:
+                    name = user.username or user.email
+                else:
+                    name = "Unknown User"
+            else:
+                name = "Unknown Member"
+        else:
+            name = "System"
+        
+        # 为每个用户/ai分配固定的颜色
+        colors = ['#ff9800', '#2196f3', '#9c27b0', '#4caf50', '#f44336', '#e91e63', '#673ab7', '#3f51b5', '#00bcd4', '#009688']
+        
+        # 根据personality的值获取对应的中文标签和颜色
+        personality_value = getattr(member, 'personality', '') if member else ''
+        tag_label, tag_type_color = get_personality_info(personality_value)
+        
+        # 构建消息对象
+        message_obj = {
+            "id": msg.id,
+            "type": msg_type,
+            "content": msg.content,
+            "avatar": name[0].upper() if name else None,  # 取名字的首字母
+            "name": name,
+            "tag": tag_label,  # 对应personality字段的中文标签
+            "tagType": tag_type_color,  # 对应personality的颜色
+            "likes": 0,  # 默认值，如果有点赞功能可以查询
+            "avatarColor": tag_type_color  # 使用基于名称的固定颜色
+        }
+        
+        result.append(message_obj)
+    
+    return result
 
 
 # AI Model Endpoints
