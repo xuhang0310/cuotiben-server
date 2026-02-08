@@ -16,7 +16,7 @@ from app.services.ai_relevance_detector import MessageRelevanceDetector, SmartTr
 from app.services.ai_context_manager import ConversationContextManager, SelectiveContextProvider
 from app.services.ai_character_service import AiCharacterService, CharacterDriftPrevention, RoleConsistencyMiddleware
 
-router = APIRouter(prefix="/api/ai-group-chat", tags=["AI Group Chat"])
+router = APIRouter(prefix="/ai-group-chat", tags=["AI Group Chat"])
 
 # 请求模型
 class TriggerAIResponseRequest(BaseModel):
@@ -95,9 +95,11 @@ async def trigger_ai_response(
 
         logger.info("Checking if AI should be triggered...")
         
-        # 检查是否应该触发AI（除非强制触发）
-        if not request.force_trigger:
-            logger.info("Not forcing trigger, using SmartTriggerDetector")
+        # 检查是否应该触发AI（除非强制触发或提供了触发消息）
+        # 如果提供了触发消息，视为用户明确要求AI回应，应跳过相关性检测
+        should_skip_relevance_check = request.force_trigger or (request.trigger_message is not None and request.trigger_message.strip() != "")
+        if not should_skip_relevance_check:
+            logger.info("Not forcing trigger and no trigger message, using SmartTriggerDetector")
             trigger_detector = SmartTriggerDetector(db)
             should_trigger_result = trigger_detector.should_trigger_ai(
                 request.group_id,
@@ -105,7 +107,7 @@ async def trigger_ai_response(
                 request.trigger_message
             )
             logger.info(f"SmartTriggerDetector result: {should_trigger_result}")
-            
+
             if not should_trigger_result:
                 trigger_reasons = trigger_detector.get_trigger_reasons(
                     request.group_id,

@@ -8,7 +8,10 @@ import json
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.models.ai_chat import AiModel
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
+logging.debug("AI模型服务已加载")
 
 # 为了兼容Python 3.9~3.13，使用延迟求值
 # 在Python 3.7+中，可以使用from __future__ import annotations来提高类型提示性能
@@ -49,6 +52,12 @@ class AiModelService:
         """调用OpenAI API"""
         if aiohttp is None:
             raise ImportError("aiohttp模块未安装，请运行: pip install aiohttp")
+
+        import ssl
+        import certifi
+        
+        # 创建SSL上下文，使用certifi提供的证书
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
         
         headers = {
             "Content-Type": "application/json",
@@ -56,13 +65,15 @@ class AiModelService:
         }
 
         payload = {
-            "model": ai_model.model_name,
+            "model": "qwen-plus",
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": max_tokens,
             "temperature": temperature
         }
-
-        async with aiohttp.ClientSession() as session:
+        logging.info(f"调用OpenAI API，模型: {ai_model.model_name}, 请求体: {json.dumps(payload)}")
+        logging.info(f"OpenAI API端点: {ai_model.endpoint}")
+        connector = aiohttp.TCPConnector(ssl=ssl_context)
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post(
                 f"{ai_model.endpoint}/chat/completions",
                 headers=headers,
@@ -80,6 +91,12 @@ class AiModelService:
         if aiohttp is None:
             raise ImportError("aiohttp模块未安装，请运行: pip install aiohttp")
         
+        import ssl
+        import certifi
+        
+        # 创建SSL上下文，使用certifi提供的证书
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+
         # 这里需要根据阿里云实际API接口调整
         # 示例代码（需要根据实际API文档修改）
         headers = {
@@ -93,7 +110,8 @@ class AiModelService:
             "temperature": temperature
         }
 
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(ssl=ssl_context)
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post(
                 ai_model.endpoint,
                 headers=headers,

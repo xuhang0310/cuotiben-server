@@ -51,6 +51,12 @@ class AiGroupChatService:
         if not ai_model or (hasattr(ai_model, 'is_active') and ai_model.is_active is False):
             raise ValueError(f"AI模型不可用: {ai_member.ai_model}")
 
+        # 验证AI模型的必要字段是否存在
+        if not ai_model.endpoint or not ai_model.endpoint.strip():
+            raise ValueError(f"AI模型端点配置缺失: {ai_member.ai_model}")
+        if not ai_model.api_key or not ai_model.api_key.strip():
+            raise ValueError(f"AI模型API密钥配置缺失: {ai_member.ai_model}")
+
         # 3. 获取完整的对话上下文
         conversation_context = self.conversation_manager.build_conversation_context(group_id)
 
