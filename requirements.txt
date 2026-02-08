@@ -19,6 +19,7 @@ python-dotenv==1.0.0
 # HTTP客户端和请求
 requests==2.31.0
 httpx==0.25.1
+aiohttp==3.9.1
 
 # 图像处理
 pillow==11.0.0

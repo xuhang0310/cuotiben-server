@@ -16,6 +16,7 @@ from app.api import historical_figures, conversations
 from app.api import upload, prompt_generator
 from app.api import qwen_ai
 from app.api import ai_chat
+from app.api import ai_group_chat
 from app.api import auth
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
@@ -46,6 +47,7 @@ app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(prompt_generator.router, prefix="/api/prompt", tags=["prompt-generator"])
 app.include_router(qwen_ai.router, prefix="/api/qwen", tags=["qwen-ai"])
 app.include_router(ai_chat.router, prefix="/api", tags=["ai-chat"])
+app.include_router(ai_group_chat.router, prefix="/api", tags=["ai-group-chat"])
 app.include_router(auth.router, prefix="/api", tags=["authentication"])
 
 # 挂载静态文件目录，用于访问上传的图片
