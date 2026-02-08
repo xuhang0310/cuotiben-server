@@ -10,7 +10,15 @@ from sqlalchemy.orm import Session
 from app.models.ai_chat import AiGroupMember, AiMessage, AiModel, AiChatGroup
 from app.services.ai_model_service import AiModelService
 from app.services.ai_character_service import AiCharacterService, CharacterDriftPrevention, ConsistencyReinforcement
-from app.services.ai_context_manager import SelectiveContextProvider, ConversationContextManager, build_context_aware_prompt
+from app.services.ai_context_manager import (
+    SelectiveContextProvider,
+    ConversationContextManager,
+    build_context_aware_prompt,
+    build_segmented_context_for_ai,
+    build_enhanced_context,
+    build_timeline_context,
+    create_role_aware_prompt
+)
 from app.services.ai_relevance_detector import SmartTriggerDetector
 
 
@@ -57,44 +65,46 @@ class AiGroupChatService:
         if not ai_model.api_key or not ai_model.api_key.strip():
             raise ValueError(f"AI模型API密钥配置缺失: {ai_member.ai_model}")
 
-        # 3. 获取完整的对话上下文
-        conversation_context = self.conversation_manager.build_conversation_context(group_id)
+        # 3. 获取时间线格式的上下文（按时间顺序，明确标注身份）
+        timeline_context = build_timeline_context(
+            db_session=self.db,
+            target_member_id=member_id,
+            group_id=group_id,
+            message_limit=20
+        )
 
-        # 4. 构建角色提示
-        character_prompt = self.character_service.get_character_prompt(member_id)
-
-        # 5. 构建上下文感知的完整提示
-        full_prompt = build_context_aware_prompt(
-            character_prompt=character_prompt,
-            conversation_context=conversation_context,
-            target_member_nickname=ai_member.ai_nickname if ai_member.ai_nickname is not None else "",
-            target_member_personality=ai_member.personality if ai_member.personality is not None else "",
-            target_member_stance=ai_member.initial_stance if ai_member.initial_stance is not None else ""
+        # 4. 构建角色感知提示词（使用时间线格式）
+        full_prompt = create_role_aware_prompt(
+            ai_member=ai_member,
+            context=timeline_context
         )
 
         # 如果有触发消息，将其添加到提示中
         if trigger_message is not None and trigger_message.strip():
-            full_prompt += f"\n\n有人特别提到你并询问：{trigger_message}\n请回应这个问题。"
+            full_prompt += f"\n\n【特别提醒】\n有人特别提到你并询问：\"{trigger_message}\"\n请优先回应这个问题。"
 
-        # 6. 调用AI模型生成响应
+        # 5. 调用AI模型生成响应
         try:
             response = await self.ai_model_service.generate(
                 model_name=ai_member.ai_model,
                 prompt=full_prompt,
-                max_tokens=500,
-                temperature=0.7
+                max_tokens=300,  # 控制回复长度
+                temperature=0.8  # 增加一些随机性使回复更自然
             )
         except Exception as e:
             raise RuntimeError(f"AI模型调用失败: {str(e)}")
 
+        # 6. 后处理：去除过度格式化内容，使回复更自然
+        processed_response = self._post_process_response(response)
+
         # 7. 检查角色漂移
-        if self.drift_prevention.detect_drift(member_id, response):
+        if self.drift_prevention.detect_drift(member_id, processed_response):
             # 如果检测到漂移，尝试修正
-            response = await self._correct_response_if_drifting(
-                member_id, response, full_prompt
+            processed_response = await self._correct_response_if_drifting(
+                member_id, processed_response, full_prompt
             )
 
-        return response
+        return processed_response
 
     async def _correct_response_if_drifting(
         self,
@@ -130,7 +140,7 @@ class AiGroupChatService:
             corrected_response = await self.ai_model_service.generate(
                 model_name=ai_member.ai_model,
                 prompt=correction_prompt,
-                max_tokens=500,
+                max_tokens=300,
                 temperature=0.6  # 稍微降低随机性以提高一致性
             )
         except Exception as e:
@@ -148,6 +158,28 @@ class AiGroupChatService:
         ).first()
         
         return ai_member is not None
+
+    def _post_process_response(self, response: str) -> str:
+        """后处理AI响应，使其更自然"""
+        # 去除过度的格式化标记
+        import re
+        
+        # 移除过多的星号、井号等格式符号
+        processed = re.sub(r'\*{2,}', '', response)  # 移除多余的**
+        processed = re.sub(r'#{1,}', '', processed)   # 移除多余的#
+        processed = re.sub(r'^\s*[-*]\s*', '', processed, flags=re.MULTILINE)  # 移除列表符号
+        
+        # 限制重复的换行符
+        processed = re.sub(r'\n{3,}', '\n\n', processed)
+        
+        # 修剪首尾空白
+        processed = processed.strip()
+        
+        # 确保不超过最大长度
+        if len(processed) > 200:
+            processed = processed[:200] + "..."
+        
+        return processed
 
     def validate_group_exists(self, group_id: int) -> bool:
         """验证群组是否存在"""

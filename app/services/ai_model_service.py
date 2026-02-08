@@ -70,7 +70,7 @@ class AiModelService:
             "max_tokens": max_tokens,
             "temperature": temperature
         }
-        logging.info(f"调用OpenAI API，模型: {ai_model.model_name}, 请求体: {json.dumps(payload)}")
+        logging.info(f"调用OpenAI API，模型: {ai_model.model_name}, 请求体: {payload}")
         logging.info(f"OpenAI API端点: {ai_model.endpoint}")
         connector = aiohttp.TCPConnector(ssl=ssl_context)
         async with aiohttp.ClientSession(connector=connector) as session:

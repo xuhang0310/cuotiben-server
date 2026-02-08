@@ -15,6 +15,7 @@ from app.services.ai_group_chat_service import AiGroupChatService
 from app.services.ai_relevance_detector import MessageRelevanceDetector, SmartTriggerDetector
 from app.services.ai_context_manager import ConversationContextManager, SelectiveContextProvider
 from app.services.ai_character_service import AiCharacterService, CharacterDriftPrevention, RoleConsistencyMiddleware
+from app.services.mention_parser import MentionParser
 
 router = APIRouter(prefix="/ai-group-chat", tags=["AI Group Chat"])
 
@@ -321,3 +322,218 @@ async def get_ai_characteristics(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取AI特征失败: {str(e)}")
+
+
+# ==================== @提及功能API ====================
+
+class SendMessageRequest(BaseModel):
+    """发送消息请求"""
+    content: str
+    sender_member_id: int
+
+    @validator('content')
+    def validate_content(cls, v):
+        if not v or not v.strip():
+            raise ValueError('消息内容不能为空')
+        if len(v) > 2000:
+            raise ValueError('消息内容不能超过2000个字符')
+        return v.strip()
+
+
+class AIResponseItem(BaseModel):
+    """单个AI响应项"""
+    member_id: int
+    nickname: str
+    content: str
+    message_id: int
+    created_at: datetime
+
+
+class SendMessageResponse(BaseModel):
+    """发送消息响应"""
+    user_message_id: int
+    mentioned_ai_count: int
+    ai_responses: List[AIResponseItem]
+
+
+@router.post("/group/{group_id}/send", response_model=ApiResponse)
+async def send_message(
+    group_id: int,
+    request: SendMessageRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    发送消息并触发@提及的AI响应
+
+    - 如果消息包含@昵称，只触发被@的AI（按@的顺序）
+    - 如果没有@，不触发任何AI（后续可扩展为智能触发）
+    """
+    try:
+        logger.info(f"Send message to group {group_id}: {request.content}")
+
+        # 1. 验证群组存在
+        group = db.query(AiChatGroup).filter(AiChatGroup.id == group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="群组不存在")
+
+        # 2. 验证发送者存在且属于该群组
+        sender = db.query(AiGroupMember).filter(
+            AiGroupMember.id == request.sender_member_id,
+            AiGroupMember.group_id == group_id
+        ).first()
+
+        if not sender:
+            raise HTTPException(status_code=404, detail="发送者不存在或不属于该群组")
+
+        # 3. 保存用户消息
+        user_message = AiMessage(
+            group_id=group_id,
+            member_id=request.sender_member_id,
+            content=request.content,
+            message_type='text'
+        )
+        db.add(user_message)
+        db.commit()
+        db.refresh(user_message)
+        logger.info(f"User message saved: {user_message.id}")
+
+        # 4. 解析@提及
+        mention_parser = MentionParser(db)
+        mentioned_members = mention_parser.parse_mentions_in_group(
+            content=request.content,
+            group_id=group_id
+        )
+
+        if not mentioned_members:
+            logger.info("No mentions found, returning user message only")
+            return ApiResponse(
+                success=True,
+                message="消息已发送，未触发AI（无@提及）",
+                data={
+                    "user_message_id": user_message.id,
+                    "mentioned_ai_count": 0,
+                    "ai_responses": []
+                }
+            )
+
+        logger.info(f"Found {len(mentioned_members)} mentioned AI members: "
+                   f"{[m.ai_nickname for m in mentioned_members]}")
+
+        # 5. 按顺序依次触发被@的AI
+        ai_service = AiGroupChatService(db)
+        ai_responses = []
+
+        for member in mentioned_members:
+            try:
+                logger.info(f"Generating response for AI member: {member.ai_nickname} (ID: {member.id})")
+
+                # 验证AI成员配置完整
+                if not member.ai_model or not member.personality:
+                    logger.warning(f"AI member {member.id} missing configuration, skipping")
+                    continue
+
+                # 生成AI响应（将用户消息作为触发消息）
+                response_content = await ai_service.generate_response(
+                    member_id=member.id,
+                    group_id=group_id,
+                    trigger_message=request.content
+                )
+
+                # 保存AI响应
+                ai_message = AiMessage(
+                    group_id=group_id,
+                    member_id=member.id,
+                    content=response_content,
+                    message_type='text'
+                )
+                db.add(ai_message)
+                db.commit()
+                db.refresh(ai_message)
+
+                ai_responses.append(AIResponseItem(
+                    member_id=member.id,
+                    nickname=member.ai_nickname or "Unknown",
+                    content=response_content,
+                    message_id=ai_message.id,
+                    created_at=ai_message.created_at
+                ))
+
+                logger.info(f"AI {member.ai_nickname} response saved: {ai_message.id}")
+
+            except Exception as e:
+                logger.error(f"Failed to generate response for AI {member.id}: {str(e)}")
+                # 继续处理下一个AI，不中断流程
+                continue
+
+        return ApiResponse(
+            success=True,
+            message=f"消息已发送，触发了{len(ai_responses)}个AI响应",
+            data={
+                "user_message_id": user_message.id,
+                "mentioned_ai_count": len(mentioned_members),
+                "ai_responses": [response.dict() for response in ai_responses]
+            }
+        )
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in send_message: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"发送消息失败: {str(e)}")
+
+
+@router.post("/group/{group_id}/send-without-ai", response_model=ApiResponse)
+async def send_message_without_ai(
+    group_id: int,
+    request: SendMessageRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    仅发送消息，不触发任何AI响应
+    用于前端发送消息后手动控制AI触发
+    """
+    try:
+        # 验证群组存在
+        group = db.query(AiChatGroup).filter(AiChatGroup.id == group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="群组不存在")
+
+        # 验证发送者存在
+        sender = db.query(AiGroupMember).filter(
+            AiGroupMember.id == request.sender_member_id,
+            AiGroupMember.group_id == group_id
+        ).first()
+
+        if not sender:
+            raise HTTPException(status_code=404, detail="发送者不存在或不属于该群组")
+
+        # 保存消息
+        user_message = AiMessage(
+            group_id=group_id,
+            member_id=request.sender_member_id,
+            content=request.content,
+            message_type='text'
+        )
+        db.add(user_message)
+        db.commit()
+        db.refresh(user_message)
+
+        return ApiResponse(
+            success=True,
+            message="消息已发送",
+            data={
+                "message_id": user_message.id,
+                "content": user_message.content,
+                "created_at": user_message.created_at
+            }
+        )
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in send_message_without_ai: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"发送消息失败: {str(e)}")
