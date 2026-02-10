@@ -6,6 +6,8 @@ from fastapi import UploadFile, HTTPException
 from PIL import Image
 import io
 
+from .image_compression import compress_image_to_size
+
 
 class ImageUploadUtil:
     """
@@ -76,12 +78,12 @@ class ImageUploadUtil:
     def _resize_image(self, file: UploadFile, max_width: int = 1920, max_height: int = 1080) -> bytes:
         """
         调整图片大小以节省存储空间
-        
+
         Args:
             file: 上传的图片文件
             max_width: 最大宽度
             max_height: 最大高度
-            
+
         Returns:
             bytes: 调整大小后的图片字节数据
         """
@@ -100,7 +102,9 @@ class ImageUploadUtil:
         img.save(output, format=img.format)
         output.seek(0)
 
-        return output.getvalue()
+        # 进一步压缩到512KB以内
+        compressed_content = compress_image_to_size(output.getvalue(), target_size_kb=512)
+        return compressed_content
 
     async def upload_image(self, file: UploadFile, max_width: int = 1920, max_height: int = 1080) -> str:
         """
