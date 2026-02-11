@@ -1,6 +1,6 @@
 #!/bin/bash
 export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-# 后端Python项目启动脚本 - 后台运行版本
+# 后端Python项目启动脚本 - 后台运行版本（清爽版）
 
 echo "🚀 启动错题本系统Python后端..."
 
@@ -25,9 +25,8 @@ if [ ! -d "$LOG_DIR" ]; then
     mkdir -p "$LOG_DIR"
 fi
 
-# 设置日志文件路径
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-LOG_FILE="$LOG_DIR/app_$TIMESTAMP.log"
+# 设置日志文件路径（清爽格式：无日期）
+LOG_FILE="$LOG_DIR/app.log"
 PID_FILE="server.pid"
 
 echo "📝 日志文件: $LOG_FILE"
@@ -55,9 +54,9 @@ fi
 # 激活虚拟环境
 source venv/bin/activate
 
-# 安装依赖
+# 安装依赖（使用清爽的日志文件名）
 echo "🔧 安装项目依赖..."
-pip install -r requirements.txt > "$LOG_DIR/install_$TIMESTAMP.log" 2>&1
+pip install -r requirements.txt > "$LOG_DIR/install.log" 2>&1
 
 # 检查.env文件
 if [ ! -f ".env" ]; then
@@ -79,9 +78,9 @@ echo "✅ 服务已启动 (PID: $SERVER_PID)"
 
 # 显示启动信息
 echo ""
-echo "=" * 50
+echo "=================================================="
 echo "错题本系统启动成功！"
-echo "=" * 50
+echo "=================================================="
 echo "📊 服务信息:"
 echo "   🔹 PID: $SERVER_PID"
 echo "   🔹 日志: $LOG_FILE"
@@ -95,7 +94,7 @@ echo "🔧 管理命令:"
 echo "   🔸 查看日志: tail -f $LOG_FILE"
 echo "   🔸 停止服务: ./stop_server.sh"
 echo "   🔸 重启服务: ./restart_server.sh"
-echo "=" * 50
+echo "=================================================="
 
 # 显示最近日志
 echo ""
