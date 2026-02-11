@@ -20,6 +20,11 @@ from app.services.ai_context_manager import (
     create_role_aware_prompt
 )
 from app.services.ai_relevance_detector import SmartTriggerDetector
+from app.services.input_sanitizer_service import InputSanitizerService, SanitizationLevel
+from app.services.secure_prompt_template_service import SecurePromptTemplateService
+from app.services.context_isolation_service import ContextIsolationService
+from app.services.security_check_service import SecurityCheckService
+from app.services.output_validation_service import OutputValidationService
 
 
 class AiGroupChatService:
@@ -31,6 +36,13 @@ class AiGroupChatService:
         self.conversation_manager = ConversationContextManager(db_session)
         self.drift_prevention = CharacterDriftPrevention(db_session)
         self.trigger_detector = SmartTriggerDetector(db_session)
+        
+        # 新增安全服务
+        self.input_sanitizer = InputSanitizerService()
+        self.prompt_template_service = SecurePromptTemplateService()
+        self.context_isolation_service = ContextIsolationService(db_session)
+        self.security_check_service = SecurityCheckService(db_session)
+        self.output_validation_service = OutputValidationService(db_session)
 
     async def generate_response(
         self,
@@ -39,12 +51,12 @@ class AiGroupChatService:
         trigger_message: Optional[str] = None
     ) -> str:
         """生成AI响应"""
-        
+
         # 1. 验证AI成员存在
         ai_member = self.db.query(AiGroupMember).filter(
             AiGroupMember.id == member_id
         ).first()
-        
+
         if not ai_member:
             raise ValueError(f"AI成员不存在: {member_id}")
 
@@ -65,46 +77,76 @@ class AiGroupChatService:
         if not ai_model.api_key or not ai_model.api_key.strip():
             raise ValueError(f"AI模型API密钥配置缺失: {ai_member.ai_model}")
 
-        # 3. 获取时间线格式的上下文（按时间顺序，明确标注身份）
-        timeline_context = build_timeline_context(
-            db_session=self.db,
+        # 3. 构建隔离的上下文（安全增强版）
+        isolated_context = self.context_isolation_service.build_isolated_context(
             target_member_id=member_id,
             group_id=group_id,
-            message_limit=20
+            message_limit=20,
+            include_trigger_message=trigger_message
         )
 
-        # 4. 构建角色感知提示词（使用时间线格式）
-        full_prompt = create_role_aware_prompt(
+        # 4. 验证上下文完整性
+        context_integrity = self.context_isolation_service.validate_context_integrity(isolated_context)
+        if not context_integrity["overall_safe"]:
+            raise ValueError(f"上下文完整性检查失败: {context_integrity}")
+
+        # 5. 使用安全提示词模板构建提示词
+        secure_messages = self.prompt_template_service.build_secure_messages(
             ai_member=ai_member,
-            context=timeline_context
+            context=isolated_context["conversation_history"],
+            user_message=isolated_context.get("trigger_message"),
+            message_type="mention_triggered",
+            sanitizer=self.input_sanitizer
         )
 
-        # 如果有触发消息，将其添加到提示中
-        if trigger_message is not None and trigger_message.strip():
-            full_prompt += f"\n\n【特别提醒】\n有人特别提到你并询问：\"{trigger_message}\"\n请优先回应这个问题。"
+        # 6. 构建最终提示词（使用消息格式）
+        full_prompt = ""
+        for msg in secure_messages:
+            full_prompt += f"{msg['role'].upper()}: {msg['content']}\n\n"
 
-        # 5. 调用AI模型生成响应
+        # 7. 应用安全层检查
+        try:
+            secure_prompt = self.security_check_service.apply_security_layer(
+                ai_member=ai_member,
+                prompt=full_prompt
+            )
+        except ValueError as e:
+            raise ValueError(f"安全检查失败: {str(e)}")
+
+        # 8. 调用AI模型生成响应
         try:
             response = await self.ai_model_service.generate(
                 model_name=ai_member.ai_model,
-                prompt=full_prompt,
+                prompt=secure_prompt,
                 max_tokens=300,  # 控制回复长度
                 temperature=0.8  # 增加一些随机性使回复更自然
             )
         except Exception as e:
             raise RuntimeError(f"AI模型调用失败: {str(e)}")
 
-        # 6. 后处理：去除过度格式化内容，使回复更自然
-        processed_response = self._post_process_response(response)
+        # 9. 验证AI响应的安全性
+        validation_result = self.output_validation_service.validate_and_correct_response(
+            ai_member=ai_member,
+            response=response,
+            original_prompt=secure_prompt,
+            auto_correct=True
+        )
 
-        # 7. 检查角色漂移
-        if self.drift_prevention.detect_drift(member_id, processed_response):
+        if not validation_result["validation_result"]["is_valid"]:
+            # 如果验证失败，可以选择抛出异常或返回默认响应
+            raise ValueError(f"AI响应验证失败: {validation_result['validation_result']['issues_found']}")
+
+        # 10. 返回验证和可能纠正后的响应
+        final_response = validation_result["final_response"]
+
+        # 11. 检查角色漂移
+        if self.drift_prevention.detect_drift(member_id, final_response):
             # 如果检测到漂移，尝试修正
-            processed_response = await self._correct_response_if_drifting(
-                member_id, processed_response, full_prompt
+            final_response = await self._correct_response_if_drifting(
+                member_id, final_response, secure_prompt
             )
 
-        return processed_response
+        return final_response
 
     async def _correct_response_if_drifting(
         self,
