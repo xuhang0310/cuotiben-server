@@ -7,3 +7,5 @@ app/core/__pycache__
 .env
 .env
 *.pid
+*.md
+*.md

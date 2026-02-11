@@ -28,15 +28,23 @@ cuotiben-server/
 │   │   ├── upload.py           # 文件上传接口
 │   │   ├── qwen_ai.py          # 通义千问AI接口
 │   │   ├── ai_chat.py          # AI聊天接口
+│   │   ├── ai_group_chat.py    # AI群聊接口
 │   │   └── ...
 │   ├── models/                 # 数据模型定义
 │   │   ├── user.py             # 用户模型
 │   │   ├── subject.py          # 学科模型
 │   │   ├── question.py         # 问题模型
 │   │   ├── practice_record.py  # 练习记录模型
+│   │   ├── ai_chat.py          # AI聊天相关模型
 │   │   └── ...
 │   ├── schemas/                # Pydantic数据验证模型
 │   ├── services/               # 业务逻辑服务
+│   │   ├── ai_group_chat_service.py # AI群聊服务
+│   │   ├── ai_character_service.py  # AI角色服务
+│   │   ├── ai_context_manager.py    # AI上下文管理
+│   │   ├── ai_relevance_detector.py # AI相关性检测
+│   │   ├── mention_parser.py        # @提及解析
+│   │   └── ...
 │   ├── utils/                  # 工具函数
 │   ├── core/                   # 核心配置
 │   │   └── config.py           # 配置管理
@@ -48,6 +56,10 @@ cuotiben-server/
 ├── requirements.txt            # 依赖列表
 ├── .env.example                # 环境变量示例
 ├── README.md                   # 项目说明
+├── RULES.md                    # 项目开发规则
+├── ai_group_chat_api_documentation.md # AI群聊API文档
+├── ai_group_chat_design.md     # AI群聊设计文档
+├── ai_role_differentiation_design.md # AI角色差异化设计
 └── USAGE.md                    # 使用说明
 ```
 
@@ -71,9 +83,37 @@ cuotiben-server/
 - **智能聊天**: 与AI助手进行自然语言对话
 - **学习辅助**: 获取学习建议和解题思路
 
-### 5. 内容管理
+### 5. AI群聊功能
+- **多AI角色差异化**: 每个AI在群聊中表现出不同的角色特征
+- **@提及功能**: 用户可以@特定AI触发其回应
+- **人格特征管理**: AI具有独特的人格特征和初始立场
+- **相关性检测**: AI只在被提及或话题相关时回应
+- **立场一致性**: 确保AI在对话中保持其初始立场
+
+### 6. 内容管理
 - **文件上传**: 支持图片等多媒体文件上传功能
 - **内容生成**: 通过提示词生成相关内容
+
+## AI群聊功能详解
+
+### 数据库表结构
+- `ai_chat_groups`: 存储群聊基本信息
+- `ai_group_members`: 存储群聊中的成员信息（区分人类和AI）
+- `ai_messages`: 存储群聊中的消息记录
+- `ai_models`: 存储可用的AI模型信息
+
+### 核心服务组件
+1. **AiGroupChatService**: AI群聊主服务，整合所有组件
+2. **AiCharacterService**: 确保AI保持独特人格和立场
+3. **ConversationContextManager**: 维护和提供对话上下文
+4. **MessageRelevanceDetector**: 检测消息与AI的相关性
+5. **MentionParser**: 解析消息中的@提及
+
+### 关键特性
+- **角色差异化**: 每个AI具有独特的人格特征和初始立场
+- **智能触发**: 通过相关性检测决定何时触发AI回应
+- **上下文感知**: AI基于完整对话历史生成回应
+- **@提及机制**: 用户可直接@特定AI触发回应
 
 ## 环境配置
 
@@ -99,6 +139,10 @@ cuotiben-server/
 - question_tags: 问题标签关联表
 - practice_records: 练习记录表
 - user_settings: 用户设置表
+- ai_chat_groups: AI群聊表
+- ai_group_members: AI群聊成员表
+- ai_messages: AI消息表
+- ai_models: AI模型表
 
 ## 启动方式
 
@@ -148,51 +192,31 @@ python run.py
 ### AI对话
 - `POST /api/chat` - 与AI助手对话
 
+### AI群聊
+- `POST /api/ai-group-chat/ai/respond` - 触发AI响应
+- `GET /api/ai-group-chat/group/{group_id}` - 获取群组详情
+- `GET /api/ai-group-chat/messages/{group_id}` - 获取群组消息
+- `GET /api/ai-group-chat/ai-member/{member_id}/characteristics` - 获取AI成员特征
+- `POST /api/ai-group-chat/group/{group_id}/send` - 发送消息并触发@提及的AI响应
+
 ### 文件上传
 - `POST /api/upload/image` - 上传图片文件
 
-## 开发约定
+## 开发规则
 
-### 代码规范
-- 遵循PEP 8代码规范
-- 使用类型提示
-- 编写清晰的文档字符串
-- 添加适当的错误处理
-
-### 异常处理
-项目实现了全局异常处理器，统一返回格式为：
-```json
-{
-  "status": "error",
-  "code": 401,
-  "detail": "Unauthorized"
-}
-```
-
-### 日志记录
-使用Python标准logging模块记录应用运行状态，便于调试和监控。
-
-## 部署说明
-
-### 生产环境部署
-1. 使用Gunicorn或Uvicorn作为ASGI服务器
-2. 配置Nginx作为反向代理
-3. 设置SSL证书以启用HTTPS
-4. 配置数据库连接池和缓存机制
-
-### Docker部署（可选）
-```dockerfile
-FROM python:3.9
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+项目遵循在 `RULES.md` 中定义的开发规则，包括：
+- 代码规范（命名、结构、导入）
+- API设计规则
+- AI角色差异化规则
+- 数据库操作规则
+- 错误处理规则
+- 性能规则
+- 测试规则
+- 安全规则
+- AI模型集成规则
+- 部署与运维规则
+- 文档规则
+- 团队协作规则
 
 ## 测试
 
