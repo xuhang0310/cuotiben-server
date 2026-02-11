@@ -18,6 +18,7 @@ from app.api import qwen_ai
 from app.api import ai_chat
 from app.api import ai_group_chat
 from app.api import auth
+from app.api import image_compression
 from app.database.session import engine, Base
 from app.core.config import settings as app_settings
 
@@ -49,6 +50,7 @@ app.include_router(qwen_ai.router, prefix="/api/qwen", tags=["qwen-ai"])
 app.include_router(ai_chat.router, prefix="/api", tags=["ai-chat"])
 app.include_router(ai_group_chat.router, prefix="/api", tags=["ai-group-chat"])
 app.include_router(auth.router, prefix="/api", tags=["authentication"])
+app.include_router(image_compression.router, prefix="/api", tags=["image-compression"])
 
 # 挂载静态文件目录，用于访问上传的图片
 app.mount("/static", StaticFiles(directory="app"), name="static")
