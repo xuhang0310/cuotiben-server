@@ -122,7 +122,7 @@ async function handleBrowseFolder() {
 
 async function loadFolderContents() {
     if (!currentFolderPath) {
-        alert('请先选择一个文件夹');
+        showToast('请先选择一个文件夹', '提示');
         return;
     }
 
@@ -350,32 +350,31 @@ function handleSortBySize() {
 
 async function handleCompress() {
     if (!currentFolderPath) {
-        alert('请先选择一个文件夹');
+        showToast('请先选择一个文件夹', '提示');
         return;
     }
 
     // 检查是否选择了文件
     let filesToProcess = selectedFiles;
-    
+
     if (filesToProcess.length === 0) {
         if (isFilterEnabled) {
             const targetSize = parseInt(targetSizeInput.value) || 128;
             const allFiles = currentFiles.filter(file => file.size_kb > targetSize);
-            
+
             if (allFiles.length > 0) {
-                const shouldProcessAll = confirm(`${allFiles.length}个文件大于目标大小，是否处理全文件？`);
-                if (shouldProcessAll) {
+                if (confirm(`${allFiles.length}个文件大于目标大小，是否处理全文件？`)) {
                     filesToProcess = allFiles.map(file => file.path);
                 } else {
-                    alert('请至少选择一张图片');
+                    showToast('请至少选择一张图片', '提示');
                     return;
                 }
             } else {
-                alert('没有大于目标大小的文件');
+                showToast('没有大于目标大小的文件', '提示');
                 return;
             }
         } else {
-            alert('请至少选择一张图片');
+            showToast('请至少选择一张图片', '提示');
             return;
         }
     }
@@ -411,7 +410,7 @@ async function handleCompress() {
         await pollTaskStatus(taskId);
     } catch (error) {
         console.error('压缩开始错误:', error);
-        alert('压缩开始失败: ' + error.message);
+        showToast('压缩开始失败: ' + error.message, '错误');
         progressContainer.style.display = 'none';
     }
 }
@@ -474,12 +473,30 @@ function hideRenameModal() {
     renameModal.style.display = 'none';
 }
 
+// 显示Toast提示
+function showToast(message, title = '提示', delay = 5000) {
+    const toastElement = document.getElementById('toastAlert');
+    const toastTitleElement = document.getElementById('toastTitle');
+    const toastBodyElement = document.getElementById('toastBody');
+    
+    // 设置标题和消息
+    toastTitleElement.textContent = title;
+    toastBodyElement.innerHTML = message;
+    
+    // 创建Bootstrap Toast实例并显示
+    const bsToast = new bootstrap.Toast(toastElement, {
+        delay: delay
+    });
+    
+    bsToast.show();
+}
+
 async function handleConfirmRename() {
     const filePath = currentFilePathInput.value;
     const newFileName = newFileNameInput.value.trim();
     
     if (!newFileName) {
-        alert('请输入新的文件名');
+        showToast('请输入新的文件名', '错误');
         return;
     }
     
@@ -498,17 +515,17 @@ async function handleConfirmRename() {
         const data = await response.json();
         
         if (response.ok && data.success) {
-            alert(data.message);
+            showToast(data.message, '成功');
             hideRenameModal();
             
             // 重新加载文件列表以反映更改
             await loadFolderContents();
         } else {
-            alert(`重命名失败: ${data.message || '未知错误'}`);
+            showToast(`重命名失败: ${data.message || '未知错误'}`, '错误');
         }
     } catch (error) {
         console.error('重命名请求失败:', error);
-        alert(`重命名失败: ${error.message}`);
+        showToast(`重命名失败: ${error.message}`, '错误');
     }
 }
 
