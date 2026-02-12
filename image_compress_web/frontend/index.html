@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片压缩工具网页版</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-orange: #fd7e14;
+            --light-orange: #ffeaa7;
+            --dark-orange: #e17055;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: 0.5rem;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-orange), #ff9a3d) !important;
+            border-bottom: none;
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+        }
+        
+        .btn-orange {
+            background-color: var(--primary-orange);
+            border-color: var(--primary-orange);
+            color: white;
+        }
+        
+        .btn-orange:hover {
+            background-color: var(--dark-orange);
+            border-color: var(--dark-orange);
+        }
+        
+        .progress-bar {
+            background-color: var(--primary-orange) !important;
+        }
+        
+        .folder-path-container {
+            position: relative;
+        }
+        
+        .folder-path-input {
+            padding-right: 40px;
+        }
+        
+        .folder-icon-btn {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 0 0.375rem 0.375rem 0;
+            color: #6c757d;
+            cursor: pointer;
+        }
+        
+        .folder-icon-btn:hover {
+            background: #e9ecef;
+        }
+        
+        .file-item {
+            border-bottom: 1px solid #eee;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .file-checkbox {
+            margin-right: 10px;
+        }
+        
+        .file-preview {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+        
+        .file-item-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .file-item-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .card-img-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .img-preview {
+            transition: opacity 0.3s;
+        }
+        
+        .img-preview:hover {
+            opacity: 0.9;
+        }
+        
+        .card-img-top {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .progress-container {
+            display: none;
+        }
+        
+        .result-message {
+            display: none;
+        }
+        
+        .selection-controls {
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background-color: #f8f9fa;
+            border-radius: 0.375rem;
+        }
+        
+        .folder-path-container {
+            position: relative;
+        }
+        
+        .folder-path-input {
+            padding-right: 40px;
+        }
+        
+        .folder-icon-btn {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 0 0.375rem 0.375rem 0;
+            color: #6c757d;
+            cursor: pointer;
+        }
+        
+        .folder-icon-btn:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card">
+                    <div class="card-header text-white">
+                        <h3 class="mb-0"><i class="fas fa-images"></i> 图片压缩工具网页版</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- 文件夹选择 -->
+                        <div class="mb-4">
+                            <label for="folderPath" class="form-label">选择图片文件夹:</label>
+                            <div class="folder-path-container">
+                                <input type="text" class="form-control folder-path-input" id="folderPath" value="C:\Users\Administrator\Downloads\">
+                                <button class="folder-icon-btn" type="button" id="browseFolderBtn" title="浏览文件夹">
+                                    <i class="fas fa-folder-open"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 压缩参数设置 -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <label for="targetSize" class="form-label">目标大小 (KB):</label>
+                                <input type="number" class="form-control" id="targetSize" value="128" min="1">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="quality" class="form-label">图片质量 (1-100):</label>
+                                <input type="number" class="form-control" id="quality" value="85" min="1" max="100">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="format" class="form-label">输出格式:</label>
+                                <select class="form-select" id="format">
+                                    <option value="保持原格式" selected>保持原格式</option>
+                                    <option value="JPEG">JPEG</option>
+                                    <option value="PNG">PNG</option>
+                                    <option value="WEBP">WEBP</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 选择控制按钮 -->
+                        <div class="selection-controls d-flex gap-2 mb-3">
+                            <button class="btn btn-sm btn-outline-secondary" id="selectAllBtn">全选</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">取消全选</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="invertSelectionBtn">反选</button>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="filterToggle">
+                                <label class="form-check-label" for="filterToggle">过滤小文件</label>
+                            </div>
+                            <span class="ms-auto text-muted" id="selectedCount">已选择: 0 张</span>
+                        </div>
+
+                        <!-- 文件列表 -->
+                        <div class="mb-4">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                <h5>文件夹内容:</h5>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-secondary" id="sortBySizeBtn">按大小排序</button>
+                                    <button class="btn btn-sm btn-outline-secondary" id="refreshBtn">刷新</button>
+                                </div>
+                            </div>
+                            <div id="fileList" class="border rounded p-3" style="max-height: 500px; overflow-y: auto; background-color: #f8f9fa;">
+                                <p class="text-muted text-center py-4">请选择一个文件夹以查看内容</p>
+                            </div>
+                        </div>
+
+                        <!-- 操作按钮 -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button class="btn btn-outline-secondary flex-fill" id="cancelBtn">取消</button>
+                            <button class="btn btn-orange flex-fill" id="compressBtn">开始压缩</button>
+                        </div>
+
+                        <!-- 进度显示 -->
+                        <div id="progressContainer" class="progress-container mt-4">
+                            <div class="alert alert-light border" role="alert">
+                                <h5>处理状态: <span id="statusMessage">初始化中...</span></h5>
+                                <div class="progress mt-2">
+                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-orange" 
+                                         role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <div class="mt-2">
+                                    <small id="progressDetails">等待开始...</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 结果显示 -->
+                        <div id="resultMessage" class="result-message mt-4">
+                            <div class="alert alert-success" role="alert">
+                                <h5>处理完成!</h5>
+                                <p id="resultText"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome for icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM元素引用
+            const folderPathInput = document.getElementById('folderPath');
+            const browseFolderBtn = document.getElementById('browseFolderBtn');
+            const dropZone = document.getElementById('dropZone');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const targetSizeInput = document.getElementById('targetSize');
+            const qualityInput = document.getElementById('quality');
+            const formatSelect = document.getElementById('format');
+            const fileListDiv = document.getElementById('fileList');
+            const compressBtn = document.getElementById('compressBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const statusMessage = document.getElementById('statusMessage');
+            const progressDetails = document.getElementById('progressDetails');
+            const resultMessage = document.getElementById('resultMessage');
+            const resultText = document.getElementById('resultText');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const deselectAllBtn = document.getElementById('deselectAllBtn');
+            const invertSelectionBtn = document.getElementById('invertSelectionBtn');
+            const selectedCountSpan = document.getElementById('selectedCount');
+            const filterToggle = document.getElementById('filterToggle');
+            const sortBySizeBtn = document.getElementById('sortBySizeBtn');
+
+            // 当前选中的文件夹路径
+            let currentFolderPath = '';
+            // 当前文件列表
+            let currentFiles = [];
+            // 选中的文件路径数组
+            let selectedFiles = [];
+            // 是否按大小排序
+            let isSortedBySize = false;
+            // 是否启用过滤
+            let isFilterEnabled = false;
+
+            // 浏览文件夹按钮事件
+            browseFolderBtn.addEventListener('click', function() {
+                // 由于浏览器限制，我们使用一个模拟的文件夹选择
+                // 在实际的桌面应用中，这里会打开系统文件选择器
+                // 这里使用一个更接近真实体验的模拟
+                const modalHtml = `
+                    <div class="modal fade" id="folderSelectorModal" tabindex="-1" aria-labelledby="folderSelectorLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="folderSelectorLabel">选择图片文件夹</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="input-group mb-3">
+                                        <input type="text" class="form-control" id="modalFolderPathInput" value="${folderPathInput.value}" placeholder="输入文件夹路径">
+                                        <button class="btn btn-outline-secondary" type="button" id="modalBrowseBtn">浏览</button>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <small>提示：请输入要压缩图片的文件夹路径</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                    <button type="button" class="btn btn-orange" id="confirmFolderBtn">确定</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加模态框到页面
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // 获取模态框元素
+                const modalElement = document.getElementById('folderSelectorModal');
+                const modalInput = document.getElementById('modalFolderPathInput');
+                const modalBrowseBtn = document.getElementById('modalBrowseBtn');
+                const confirmBtn = document.getElementById('confirmFolderBtn');
+                
+                // 创建模态框实例
+                const modal = new bootstrap.Modal(modalElement);
+                
+                // 显示模态框
+                modal.show();
+                
+                // 浏览按钮事件
+                modalBrowseBtn.addEventListener('click', function() {
+                    // 在实际应用中，这里会打开系统文件选择器
+                    // 现在我们使用一个模拟
+                    const path = prompt('请输入文件夹路径:', modalInput.value);
+                    if (path) {
+                        modalInput.value = path;
+                    }
+                });
+                
+                // 确认按钮事件
+                confirmBtn.addEventListener('click', function() {
+                    const selectedPath = modalInput.value.trim();
+                    if (selectedPath) {
+                        currentFolderPath = selectedPath;
+                        folderPathInput.value = selectedPath;
+                        loadFolderContents();
+                    }
+                    modal.hide();
+                });
+                
+                // 模态框关闭时清理
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    this.remove();
+                });
+            });
+
+            // 刷新按钮事件
+            refreshBtn.addEventListener('click', loadFolderContents);
+
+            // 加载文件夹内容
+            async function loadFolderContents() {
+                if (!currentFolderPath) {
+                    // 如果没有设置路径，使用默认路径
+                    currentFolderPath = 'C:\\Users\\Administrator\\Downloads\\';
+                    folderPathInput.value = currentFolderPath;
+                }
+
+                try {
+                    const response = await fetch('/api/folder/scan', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            directory: currentFolderPath,
+                            target_size: parseInt(targetSizeInput.value),
+                            quality: parseInt(qualityInput.value),
+                            format: formatSelect.value
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    currentFiles = data.files;
+                    displayFileList(currentFiles);
+                } catch (error) {
+                    console.error('加载文件夹内容时出错:', error);
+                    fileListDiv.innerHTML = `<p class="text-danger text-center py-4">加载失败: ${error.message}</p>`;
+                }
+            }
+
+            // 显示文件列表
+            function displayFileList(files) {
+                if (files.length === 0) {
+                    fileListDiv.innerHTML = '<p class="text-muted text-center py-4">文件夹中没有找到图片文件</p>';
+                    selectedFiles = [];
+                    updateSelectedCount();
+                    return;
+                }
+
+                // 根据需要对文件进行排序
+                let sortedFiles = [...files];
+                if (isSortedBySize) {
+                    // 按大小降序排列（大的在前）
+                    sortedFiles.sort((a, b) => b.size_kb - a.size_kb);
+                }
+
+                // 根据需要过滤文件
+                let filteredFiles = sortedFiles;
+                if (isFilterEnabled) {
+                    // 获取目标大小
+                    const targetSize = parseInt(targetSizeInput.value) || 128;
+                    // 过滤掉小于目标大小的文件
+                    filteredFiles = sortedFiles.filter(file => file.size_kb > targetSize);
+                }
+
+                let html = '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">';
+                filteredFiles.forEach((file, index) => {
+                    const isChecked = selectedFiles.includes(file.path) ? 'checked' : '';
+                    // 创建一个URL来预览图片（使用后端API）
+                    const previewUrl = `/api/preview?file=${encodeURIComponent(file.path)}&t=${new Date().getTime()}`;
+                    html += `
+                        <div class="col">
+                            <div class="card h-100 file-item-card">
+                                <div class="card-img-container position-relative">
+                                    <input type="checkbox" class="form-check-input file-checkbox position-absolute top-0 start-0 m-2 bg-orange" data-file-path="${file.path}" ${isChecked} style="z-index: 10;">
+                                    <img src="${previewUrl}" class="card-img-top img-preview" alt="${file.name}" style="height: 200px; object-fit: cover;" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 24 24\"><rect width=\"24\" height=\"24\" fill=\"#f0f0f0\"/><path d=\"M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8.5 11.5L7 11l-1.5 1.5L3 9l5.5 5.5L11 12l5 5-7.5-7.5z\" fill=\"#999\"/></svg>';">
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title text-truncate" title="${file.name}">${file.name}</h6>
+                                    <p class="card-text mt-auto"><small class="text-muted">${file.size_kb}KB</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // 如果过滤后没有文件，显示提示信息
+                if (filteredFiles.length === 0 && isFilterEnabled) {
+                    html = '<div class="text-center py-4"><p class="text-muted">没有大于目标大小的文件</p></div>';
+                }
+                
+                html += '</div>';
+
+                fileListDiv.innerHTML = html;
+                
+                // 为新添加的复选框绑定事件
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', handleFileSelection);
+                });
+                
+                // 更新选中计数
+                selectedFiles = filteredFiles.filter(file => selectedFiles.includes(file.path)).map(file => file.path);
+                updateSelectedCount();
+            }
+
+            // 处理文件选择
+            function handleFileSelection(e) {
+                const filePath = e.target.dataset.filePath;
+                
+                if (e.target.checked) {
+                    if (!selectedFiles.includes(filePath)) {
+                        selectedFiles.push(filePath);
+                    }
+                } else {
+                    selectedFiles = selectedFiles.filter(path => path !== filePath);
+                }
+                
+                updateSelectedCount();
+            }
+
+            // 更新选中计数
+            function updateSelectedCount() {
+                selectedCountSpan.textContent = `已选择: ${selectedFiles.length} 张`;
+            }
+
+            // 全选按钮事件
+            selectAllBtn.addEventListener('click', function() {
+                if (currentFiles.length === 0) return;
+                
+                // 选中所有文件
+                selectedFiles = currentFiles.map(file => file.path);
+                
+                // 更新UI
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+                
+                updateSelectedCount();
+            });
+
+            // 取消全选按钮事件
+            deselectAllBtn.addEventListener('click', function() {
+                // 清空选中
+                selectedFiles = [];
+                
+                // 更新UI
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                
+                updateSelectedCount();
+            });
+
+            // 反选按钮事件
+            invertSelectionBtn.addEventListener('click', function() {
+                if (currentFiles.length === 0) return;
+                
+                // 获取所有文件路径
+                const allFilePaths = currentFiles.map(file => file.path);
+                
+                // 计算反选结果
+                selectedFiles = allFilePaths.filter(path => !selectedFiles.includes(path));
+                
+                // 更新UI
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    const filePath = checkbox.dataset.filePath;
+                    checkbox.checked = selectedFiles.includes(filePath);
+                });
+                
+                updateSelectedCount();
+            });
+
+            // 过滤开关事件
+            filterToggle.addEventListener('change', function() {
+                isFilterEnabled = this.checked;
+                // 重新显示文件列表以应用过滤
+                displayFileList(currentFiles);
+            });
+
+            // 按大小排序按钮事件
+            sortBySizeBtn.addEventListener('click', function() {
+                isSortedBySize = !isSortedBySize;
+                // 更新按钮文本
+                this.textContent = isSortedBySize ? '取消排序' : '按大小排序';
+                
+                // 重新显示文件列表以应用排序
+                displayFileList(currentFiles);
+            });
+
+            // 开始压缩按钮事件
+            compressBtn.addEventListener('click', async function() {
+                if (!currentFolderPath) {
+                    alert('请先选择一个文件夹');
+                    return;
+                }
+
+                // 检查是否选择了文件
+                let filesToProcess = selectedFiles;
+                
+                // 如果没有选择任何文件，但启用了过滤，可以询问用户是否处理所有文件
+                if (filesToProcess.length === 0) {
+                    if (isFilterEnabled) {
+                        const allFiles = currentFiles.filter(file => {
+                            const targetSize = parseInt(targetSizeInput.value) || 128;
+                            return file.size_kb > targetSize;
+                        });
+                        
+                        if (allFiles.length > 0) {
+                            const shouldProcessAll = confirm(`当前没有选择文件，但有 ${allFiles.length} 个文件大于目标大小。是否处理所有符合条件的文件？`);
+                            if (shouldProcessAll) {
+                                filesToProcess = allFiles.map(file => file.path);
+                            } else {
+                                alert('请至少选择一张图片进行压缩');
+                                return;
+                            }
+                        } else {
+                            alert('没有找到大于目标大小的文件');
+                            return;
+                        }
+                    } else {
+                        alert('请至少选择一张图片进行压缩');
+                        return;
+                    }
+                }
+
+                try {
+                    // 显示进度条
+                    progressContainer.style.display = 'block';
+                    resultMessage.style.display = 'none';
+
+                    // 开始压缩任务，传递选中的文件列表
+                    const response = await fetch('/api/compress', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            directory: currentFolderPath,
+                            target_size: parseInt(targetSizeInput.value),
+                            quality: parseInt(qualityInput.value),
+                            format: formatSelect.value,
+                            selected_files: filesToProcess  // 传递要处理的文件列表
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const taskId = data.task_id;
+
+                    // 开始轮询任务状态
+                    pollTaskStatus(taskId);
+                } catch (error) {
+                    console.error('开始压缩时出错:', error);
+                    alert('开始压缩失败: ' + error.message);
+                    progressContainer.style.display = 'none';
+                }
+            });
+
+            // 轮询任务状态
+            async function pollTaskStatus(taskId) {
+                let completed = false;
+
+                while (!completed) {
+                    try {
+                        const response = await fetch(`/api/task/${taskId}`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const status = await response.json();
+
+                        // 更新进度
+                        progressBar.style.width = status.progress + '%';
+                        statusMessage.textContent = status.message;
+                        progressDetails.textContent = `进度: ${Math.round(status.progress)}% (${status.processed_files}/${status.total_files} 文件)`;
+
+                        // 检查任务是否完成
+                        if (status.status === 'completed' || status.status === 'failed') {
+                            completed = true;
+                            
+                            // 隐藏进度条，显示结果
+                            progressContainer.style.display = 'none';
+                            
+                            if (status.status === 'completed') {
+                                resultText.textContent = status.message;
+                                resultMessage.className = 'result-message mt-4';
+                                resultMessage.classList.add('alert', 'alert-success');
+                            } else {
+                                resultText.textContent = status.message;
+                                resultMessage.className = 'result-message mt-4';
+                                resultMessage.classList.add('alert', 'alert-danger');
+                            }
+                            
+                            resultMessage.style.display = 'block';
+                        }
+                    } catch (error) {
+                        console.error('获取任务状态时出错:', error);
+                        statusMessage.textContent = '获取状态失败: ' + error.message;
+                        completed = true;
+                    }
+
+                    // 等待一段时间再查询
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            // 取消按钮事件
+            cancelBtn.addEventListener('click', function() {
+                // 重置表单
+                folderPathInput.value = '';
+                targetSizeInput.value = '128';
+                qualityInput.value = '85';
+                formatSelect.value = '保持原格式';
+                fileListDiv.innerHTML = '<p class="text-muted text-center py-4">请选择一个文件夹以查看内容</p>';
+                currentFolderPath = '';
+                currentFiles = [];
+                selectedFiles = [];
+                updateSelectedCount();
+                
+                // 隐藏进度和结果
+                progressContainer.style.display = 'none';
+                resultMessage.style.display = 'none';
+            });
+
+            // 页面加载时获取默认设置
+            async function loadDefaultSettings() {
+                try {
+                    const response = await fetch('/api/settings');
+                    if (response.ok) {
+                        const settings = await response.json();
+                        targetSizeInput.value = settings.default_target_size;
+                        qualityInput.value = settings.default_quality;
+                    }
+                } catch (error) {
+                    console.error('加载默认设置时出错:', error);
+                }
+                
+                // 获取系统默认下载路径
+                try {
+                    const response = await fetch('/api/default-path');
+                    if (response.ok) {
+                        const data = await response.json();
+                        // 设置默认路径，但保留用户可能已输入的路径
+                        if (!folderPathInput.value || folderPathInput.value === '') {
+                            folderPathInput.value = data.default_path;
+                            currentFolderPath = data.default_path;
+                        }
+                    }
+                } catch (error) {
+                    console.error('获取默认路径时出错:', error);
+                    // 如果获取失败，使用硬编码的默认路径
+                    if (!folderPathInput.value || folderPathInput.value === '') {
+                        folderPathInput.value = 'C:\\Users\\Administrator\\Downloads\\';
+                        currentFolderPath = 'C:\\Users\\Administrator\\Downloads\\';
+                    }
+                }
+            }
+
+            // 初始化页面
+            loadDefaultSettings();
+        });
+    </script>
+</body>
+</html>
