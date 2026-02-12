@@ -145,66 +145,89 @@ async def get_image_preview(file: str):
         logger.error(f"读取图片时出错 {file}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error reading image: {str(e)}")
 
+def validate_directory_path(directory_path: str) -> bool:
+    """
+    验证目录路径是否有效
+    
+    Args:
+        directory_path (str): 要验证的目录路径
+        
+    Returns:
+        bool: 路径是否有效
+    """
+    return os.path.isdir(directory_path)
+
+
+def get_supported_image_formats() -> set:
+    """
+    获取支持的图片格式集合
+    
+    Returns:
+        set: 支持的图片格式扩展名集合
+    """
+    return {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'}
+
+
+def scan_image_files_in_directory(directory_path: str) -> list:
+    """
+    扫描指定目录中的图片文件
+    
+    Args:
+        directory_path (str): 目录路径
+        
+    Returns:
+        list: 包含文件信息的列表
+    """
+    supported_formats = get_supported_image_formats()
+    files_info = []
+    
+    all_items = os.listdir(directory_path)
+    
+    for file_name in all_items:
+        file_path = os.path.join(directory_path, file_name)
+        
+        # 检查是否是文件（而不是子文件夹）
+        if os.path.isfile(file_path):
+            file_ext = Path(file_name).suffix.lower()
+            
+            # 检查文件扩展名是否是支持的图片格式
+            if file_ext in supported_formats:
+                try:
+                    size_kb = os.path.getsize(file_path) // 1024
+                    files_info.append({
+                        "path": file_path,
+                        "name": file_name,
+                        "size_kb": size_kb
+                    })
+                except PermissionError:
+                    # 如果无法访问某个文件，跳过它
+                    logger.warning(f"Permission denied for file: {file_path}")
+                    continue
+                except OSError as e:
+                    # 如果文件有问题，跳过它
+                    logger.warning(f"Error accessing file {file_path}: {e}")
+                    continue
+    
+    return files_info
+
+
 @app.post("/api/folder/scan")
 async def scan_folder(settings: CompressionSettings):
     """扫描文件夹中的图片文件（非递归）"""
     logger.info(f"开始扫描文件夹: {settings.directory}")
     
     try:
-        if not os.path.isdir(settings.directory):
+        if not validate_directory_path(settings.directory):
             logger.error(f"指定的路径不是有效的文件夹: {settings.directory}")
             raise HTTPException(status_code=400, detail=f"指定的路径不是有效的文件夹: {settings.directory}")
         
-        # 只扫描当前文件夹，不递归扫描子文件夹
-        from pathlib import Path
-        
-        # 支持的图片格式
-        supported_formats = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'}
-        logger.info(f"支持的图片格式: {supported_formats}")
-        
-        files_info = []
+        logger.info(f"支持的图片格式: {get_supported_image_formats()}")
         
         try:
-            # 获取文件夹中的所有项目
-            all_items = os.listdir(settings.directory)
-            logger.info(f"文件夹 '{settings.directory}' 中共有 {len(all_items)} 个项目")
+            logger.info(f"文件夹 '{settings.directory}' 开始扫描")
+            files_info = scan_image_files_in_directory(settings.directory)
+            logger.info(f"扫描完成，找到 {len(files_info)} 个图片文件")
             
-            # 遏当前文件夹中的文件
-            for file_name in all_items:
-                file_path = os.path.join(settings.directory, file_name)
-                logger.debug(f"检查项目: {file_name}, 路径: {file_path}")
-                
-                # 检查是否是文件（而不是子文件夹）
-                if os.path.isfile(file_path):
-                    logger.debug(f"  是文件，检查扩展名")
-                    file_ext = Path(file_name).suffix.lower()
-                    logger.debug(f"  文件扩展名: {file_ext}")
-                    
-                    # 检查文件扩展名是否是支持的图片格式
-                    if file_ext in supported_formats:
-                        logger.info(f"  找到支持的图片文件: {file_name}")
-                        try:
-                            size_kb = os.path.getsize(file_path) // 1024
-                            logger.debug(f"  文件大小: {size_kb}KB")
-                            files_info.append({
-                                "path": file_path,
-                                "name": file_name,
-                                "size_kb": size_kb
-                            })
-                            logger.info(f"  已添加文件到列表: {file_name}")
-                        except PermissionError:
-                            # 如果无法访问某个文件，跳过它
-                            logger.warning(f"Permission denied for file: {file_path}")
-                            continue
-                        except OSError as e:
-                            # 如果文件有问题，跳过它
-                            logger.warning(f"Error accessing file {file_path}: {e}")
-                            continue
-                    else:
-                        logger.debug(f"  文件扩展名 {file_ext} 不在支持的格式列表中，跳过")
-                else:
-                    logger.debug(f"  是文件夹，跳过")
-                    
         except PermissionError as e:
             logger.error(f"没有权限访问文件夹: {settings.directory}, 错误: {e}")
             raise HTTPException(status_code=403, detail=f"没有权限访问文件夹: {settings.directory}")
@@ -212,7 +235,6 @@ async def scan_folder(settings: CompressionSettings):
             logger.error(f"访问文件夹时出错: {e}")
             raise HTTPException(status_code=500, detail=f"访问文件夹时出错: {str(e)}")
         
-        logger.info(f"扫描完成，找到 {len(files_info)} 个图片文件")
         return {
             "folder_path": settings.directory,
             "total_files": len(files_info),
@@ -246,6 +268,103 @@ async def start_compression(settings: CompressionSettings):
     
     return {"task_id": task_id}
 
+def get_files_for_processing(settings: CompressionSettings) -> list:
+    """
+    根据设置获取需要处理的文件列表
+    
+    Args:
+        settings (CompressionSettings): 压缩设置
+        
+    Returns:
+        list: 需要处理的文件路径列表
+    """
+    if settings.selected_files:
+        return settings.selected_files
+    else:
+        # 扫描当前文件夹（非递归）
+        from pathlib import Path
+        
+        # 使用统一的函数获取支持的图片格式
+        supported_formats = get_supported_image_formats()
+        
+        image_files = []
+        
+        # 遏当前文件夹中的文件
+        for file_name in os.listdir(settings.directory):
+            file_path = os.path.join(settings.directory, file_name)
+            
+            # 检查是否是文件（而不是子文件夹）
+            if os.path.isfile(file_path):
+                file_ext = Path(file_name).suffix.lower()
+                
+                # 检查文件扩展名是否是支持的图片格式
+                if file_ext in supported_formats:
+                    image_files.append(file_path)
+        
+        return image_files
+
+
+def process_single_image(image_path: str, settings: CompressionSettings) -> tuple[bool, str]:
+    """
+    处理单个图片文件
+    
+    Args:
+        image_path (str): 图片文件路径
+        settings (CompressionSettings): 压缩设置
+        
+    Returns:
+        tuple[bool, str]: (是否成功, 备份路径)
+    """
+    # 创建备份文件名（带_compress后缀）
+    backup_path = create_backup_name(image_path)
+    
+    # 压缩图片
+    success = compress_image(
+        input_path=image_path,
+        output_path=backup_path,
+        target_size_kb=settings.target_size,
+        quality=settings.quality,
+        target_format=settings.format if settings.format != "保持原格式" else None
+    )
+    
+    return success, backup_path
+
+
+def update_task_progress(task_id: str, current_index: int, total_files: int, file_name: str):
+    """
+    更新任务进度
+    
+    Args:
+        task_id (str): 任务ID
+        current_index (int): 当前索引
+        total_files (int): 总文件数
+        file_name (str): 当前处理的文件名
+    """
+    progress = ((current_index + 1) / total_files) * 100
+    tasks_status[task_id]["progress"] = progress
+    tasks_status[task_id]["message"] = f"正在处理: {file_name}"
+
+
+def finalize_task(task_id: str, compressed_files: list, processed_count: int):
+    """
+    完成任务的最终处理
+    
+    Args:
+        task_id (str): 任务ID
+        compressed_files (list): 压缩后的文件列表
+        processed_count (int): 已处理的文件数
+    """
+    if processed_count > 0:
+        tasks_status[task_id]["message"] = "正在移动原始文件到备份文件夹..."
+        
+        successful_replacements = 0
+        for compress_path in compressed_files:
+            if safe_replace_original(compress_path):
+                successful_replacements += 1
+        
+        tasks_status[task_id]["message"] = f"处理完成！成功处理 {successful_replacements} 个文件，原始文件已保存在备份文件夹中"
+
+
 def run_compression_task(task_id: str, settings: CompressionSettings):
     """在后台线程中执行压缩任务"""
     try:
@@ -254,41 +373,15 @@ def run_compression_task(task_id: str, settings: CompressionSettings):
         tasks_status[task_id]["message"] = "正在准备压缩任务..."
         
         # 获取要处理的文件列表
-        # 如果用户选择了特定文件，则只处理这些文件
-        # 否则处理文件夹中的所有图片文件
-        if settings.selected_files:
-            image_files = settings.selected_files
-            total_files = len(image_files)
-        else:
-            # 扫描当前文件夹（非递归）
-            from pathlib import Path
-            
-            # 支持的图片格式
-            supported_formats = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'}
-            
-            image_files = []
-            
-            # 遏当前文件夹中的文件
-            for file_name in os.listdir(settings.directory):
-                file_path = os.path.join(settings.directory, file_name)
-                
-                # 检查是否是文件（而不是子文件夹）
-                if os.path.isfile(file_path):
-                    file_ext = Path(file_name).suffix.lower()
-                    
-                    # 检查文件扩展名是否是支持的图片格式
-                    if file_ext in supported_formats:
-                        image_files.append(file_path)
-            
-            total_files = len(image_files)
-        
+        image_files = get_files_for_processing(settings)
+        total_files = len(image_files)
         tasks_status[task_id]["total_files"] = total_files
         
         processed_files = 0
         skipped_files = 0
         compressed_files = []
         
-        # 遍历图片文件进行压缩
+        # 遏历图片文件进行压缩
         for i, image_path in enumerate(image_files):
             # 检查文件是否存在
             if not os.path.exists(image_path):
@@ -308,19 +401,10 @@ def run_compression_task(task_id: str, settings: CompressionSettings):
                 continue
             
             # 更新进度
-            tasks_status[task_id]["message"] = f"正在处理: {os.path.basename(image_path)}"
+            update_task_progress(task_id, i, total_files, os.path.basename(image_path))
             
-            # 创建备份文件名（带_compress后缀）
-            backup_path = create_backup_name(image_path)
-            
-            # 压缩图片
-            success = compress_image(
-                input_path=image_path,
-                output_path=backup_path,
-                target_size_kb=settings.target_size,
-                quality=settings.quality,
-                target_format=settings.format if settings.format != "保持原格式" else None
-            )
+            # 处理单个图片
+            success, backup_path = process_single_image(image_path, settings)
             
             if success:
                 compressed_files.append(backup_path)
@@ -332,27 +416,13 @@ def run_compression_task(task_id: str, settings: CompressionSettings):
                     os.remove(backup_path)
                 processed_files += 1  # 失败也算处理过
                 tasks_status[task_id]["processed_files"] = processed_files
-            
-            # 更新进度百分比
-            progress = ((i + 1) / total_files) * 100
-            tasks_status[task_id]["progress"] = progress
         
         # 更新最终状态
         tasks_status[task_id]["status"] = "completed"
         tasks_status[task_id]["message"] = f"压缩完成！共处理 {processed_files} 个文件，跳过 {skipped_files} 个小于目标大小的文件"
         
-        # 询问是否要移动原图到备份文件夹并重命名压缩图
-        # 在实际应用中，这里可能需要用户确认
-        # 为了演示目的，我们直接执行操作
-        if processed_files > 0:
-            tasks_status[task_id]["message"] = "正在移动原始文件到备份文件夹..."
-            
-            successful_replacements = 0
-            for compress_path in compressed_files:
-                if safe_replace_original(compress_path):
-                    successful_replacements += 1
-            
-            tasks_status[task_id]["message"] = f"处理完成！成功处理 {successful_replacements} 个文件，原始文件已保存在备份文件夹中"
+        # 完成任务的最终处理
+        finalize_task(task_id, compressed_files, processed_files)
         
     except Exception as e:
         tasks_status[task_id]["status"] = "failed"
