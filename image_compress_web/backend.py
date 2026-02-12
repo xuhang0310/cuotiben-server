@@ -428,12 +428,116 @@ def run_compression_task(task_id: str, settings: CompressionSettings):
         tasks_status[task_id]["status"] = "failed"
         tasks_status[task_id]["message"] = f"处理失败: {str(e)}"
 
+def ensure_unique_filename(file_path):
+    """
+    确保文件名唯一，如果文件已存在则添加序号
+
+    Args:
+        file_path (str): 原始文件路径
+
+    Returns:
+        str: 确保唯一的文件路径
+    """
+    path_obj = Path(file_path)
+    directory = path_obj.parent
+    stem = path_obj.stem
+    suffix = path_obj.suffix
+    
+    counter = 1
+    unique_path = file_path
+    while os.path.exists(unique_path):
+        new_name = f"{stem}({counter}){suffix}"
+        unique_path = str(directory / new_name)
+        counter += 1
+        
+    return unique_path
+
+def rename_image_file(original_path, new_name):
+    """
+    重命名图片文件，确保新名称不与其他文件冲突
+
+    Args:
+        original_path (str): 原始文件路径
+        new_name (str): 新文件名
+
+    Returns:
+        str: 重命名后的文件路径
+    """
+    if not os.path.exists(original_path):
+        raise FileNotFoundError(f"文件不存在: {original_path}")
+    
+    # 获取原始文件的目录和扩展名
+    original_dir = os.path.dirname(original_path)
+    original_ext = os.path.splitext(original_path)[1]
+    
+    # 确保新名称包含正确的扩展名
+    if not new_name.lower().endswith(original_ext.lower()):
+        new_name = new_name + original_ext
+    
+    # 构造新路径 - 使用原始文件的目录，而不是文件路径
+    new_path = os.path.join(original_dir, new_name)
+    
+    # 确保新路径唯一
+    unique_new_path = ensure_unique_filename(new_path)
+    
+    # 重命名文件
+    os.rename(original_path, unique_new_path)
+    
+    return unique_new_path
+
+class RenameRequest(BaseModel):
+    original_path: str
+    new_name: str
+
+@app.post("/api/rename")
+async def rename_file(request: RenameRequest):
+    """重命名图片文件"""
+    try:
+        original_path = request.original_path
+        new_name = request.new_name
+        
+        if not os.path.exists(original_path):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        # 验证新名称是否为空
+        if not new_name or new_name.strip() == "":
+            raise HTTPException(status_code=400, detail="新文件名不能为空")
+        
+        # 验证文件扩展名是否为图片格式
+        valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'}
+        original_ext = os.path.splitext(original_path)[1].lower()
+        new_ext = os.path.splitext(new_name)[1].lower()
+        
+        # 如果新名称没有扩展名，使用原始扩展名
+        if not new_ext:
+            new_name = new_name + original_ext
+        elif new_ext not in valid_extensions:
+            # 如果新扩展名不在允许的图片格式中，使用原始扩展名
+            new_name = os.path.splitext(new_name)[0] + original_ext
+        
+        # 重命名文件
+        new_path = rename_image_file(original_path, new_name)
+        
+        return {
+            "success": True,
+            "original_path": original_path,
+            "new_path": new_path,
+            "message": f"文件已成功重命名为: {os.path.basename(new_path)}"
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"重命名文件时出错: {e}")
+        raise HTTPException(status_code=500, detail=f"重命名失败: {str(e)}")
+
 @app.get("/api/task/{task_id}")
 async def get_task_status(task_id: str):
     """获取任务状态"""
     if task_id not in tasks_status:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
+
     return tasks_status[task_id]
 
 # 挂载前端静态文件

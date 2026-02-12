@@ -27,6 +27,13 @@ let invertSelectionBtn;
 let selectedCountSpan;
 let filterToggle;
 let sortBySizeBtn;
+let renameModal;
+let currentFileNameSpan;
+let currentFilePathInput;
+let newFileNameInput;
+let confirmRenameBtn;
+let cancelRenameBtn;
+let closeRenameModalSpan;
 
 // 函数定义
 function initializeElements() {
@@ -51,35 +58,56 @@ function initializeElements() {
     selectedCountSpan = document.getElementById('selectedCount');
     filterToggle = document.getElementById('filterToggle');
     sortBySizeBtn = document.getElementById('sortBySizeBtn');
+    
+    // 重命名模态框元素
+    renameModal = document.getElementById('renameModal');
+    currentFileNameSpan = document.getElementById('currentFileName');
+    currentFilePathInput = document.getElementById('currentFilePath');
+    newFileNameInput = document.getElementById('newFileName');
+    confirmRenameBtn = document.getElementById('confirmRename');
+    cancelRenameBtn = document.getElementById('cancelRename');
+    closeRenameModalSpan = document.querySelector('.close-rename-modal');
 }
 
 function attachEventListeners() {
     // 文件夹选择按钮事件
     browseFolderBtn.addEventListener('click', handleBrowseFolder);
-    
+
     // 刷新按钮事件
     refreshBtn.addEventListener('click', loadFolderContents);
-    
+
     // 全选择按钮事件
     selectAllBtn.addEventListener('click', handleSelectAll);
-    
+
     // 全解除按钮事件
     deselectAllBtn.addEventListener('click', handleDeselectAll);
-    
+
     // 反选按钮事件
     invertSelectionBtn.addEventListener('click', handleInvertSelection);
-    
+
     // 过滤切换事件
     filterToggle.addEventListener('change', handleFilterToggle);
-    
+
     // 大小顺序按钮事件
     sortBySizeBtn.addEventListener('click', handleSortBySize);
-    
+
     // 压缩开始按钮事件
     compressBtn.addEventListener('click', handleCompress);
-    
+
     // 取消按钮事件
     cancelBtn.addEventListener('click', handleCancel);
+    
+    // 重命名模态框事件
+    confirmRenameBtn.addEventListener('click', handleConfirmRename);
+    cancelRenameBtn.addEventListener('click', hideRenameModal);
+    closeRenameModalSpan.addEventListener('click', hideRenameModal);
+    
+    // 点击模态框外部关闭
+    window.addEventListener('click', function(event) {
+        if (event.target === renameModal) {
+            hideRenameModal();
+        }
+    });
 }
 
 async function handleBrowseFolder() {
@@ -169,6 +197,9 @@ function displayFileList(files) {
                 <div class="card-body">
                     <h6 class="card-title" title="${file.name}">${file.name}</h6>
                     <p class="card-text"><small class="text-muted">${file.size_kb}KB</small></p>
+                    <div class="file-actions">
+                        <button class="btn btn-sm btn-outline-primary rename-btn" data-file-path="${file.path}">重命名</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -176,12 +207,20 @@ function displayFileList(files) {
     html += '</div>';
 
     fileListDiv.innerHTML = html;
-    
+
     // 为新添加的复选框绑定事件监听器
     document.querySelectorAll('.file-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', handleFileSelection);
     });
-    
+
+    // 为重命名按钮绑定事件监听器
+    document.querySelectorAll('.rename-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const filePath = this.getAttribute('data-file-path');
+            showRenameModal(filePath);
+        });
+    });
+
     // 更新选择计数
     selectedFiles = filteredFiles.filter(file => selectedFiles.includes(file.path)).map(file => file.path);
     updateSelectedCount();
@@ -423,6 +462,56 @@ async function pollTaskStatus(taskId) {
     }
 }
 
+function showRenameModal(filePath) {
+    const fileName = filePath.split('\\').pop().split('/').pop(); // 获取文件名，兼容Windows和Unix路径
+    currentFileNameSpan.textContent = fileName;
+    currentFilePathInput.value = filePath;
+    newFileNameInput.value = fileName.split('.')[0]; // 默认去掉扩展名作为新文件名
+    renameModal.style.display = 'block';
+}
+
+function hideRenameModal() {
+    renameModal.style.display = 'none';
+}
+
+async function handleConfirmRename() {
+    const filePath = currentFilePathInput.value;
+    const newFileName = newFileNameInput.value.trim();
+    
+    if (!newFileName) {
+        alert('请输入新的文件名');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/rename', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                original_path: filePath,
+                new_name: newFileName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(data.message);
+            hideRenameModal();
+            
+            // 重新加载文件列表以反映更改
+            await loadFolderContents();
+        } else {
+            alert(`重命名失败: ${data.message || '未知错误'}`);
+        }
+    } catch (error) {
+        console.error('重命名请求失败:', error);
+        alert(`重命名失败: ${error.message}`);
+    }
+}
+
 function handleCancel() {
     // 重置表单
     folderPathInput.value = '';
@@ -434,7 +523,7 @@ function handleCancel() {
     currentFiles = [];
     selectedFiles = [];
     updateSelectedCount();
-    
+
     // 隐藏进度和结果
     progressContainer.style.display = 'none';
     resultMessage.style.display = 'none';
