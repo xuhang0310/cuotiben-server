@@ -1,6 +1,6 @@
-/* 水印去除模块样式 */
+/* Watermark Module Styles */
 
-/* 上传区域 */
+/* Upload Area */
 .upload-area {
     margin: 1.5rem 0;
 }
@@ -43,7 +43,7 @@
     color: #6c757d;
 }
 
-/* 模式选择 */
+/* Mode Selector */
 .watermark-mode-selector {
     margin-bottom: 1.5rem;
 }
@@ -57,7 +57,7 @@
     flex: 1;
 }
 
-/* 文件列表 */
+/* File List */
 .watermark-file-list {
     background: #f8f9fa;
     border-radius: var(--border-radius);
@@ -115,7 +115,7 @@
     color: #dc3545;
 }
 
-/* 检测预览 */
+/* Detection Preview */
 .detection-preview {
     background: #f8f9fa;
     border-radius: var(--border-radius);
@@ -152,7 +152,7 @@
     padding: 0.5rem 0.75rem;
 }
 
-/* 手动调整控件 */
+/* Manual Adjust Controls */
 #manualAdjustControls {
     background: white;
     padding: 1rem;
@@ -165,7 +165,7 @@
     color: #6c757d;
 }
 
-/* 水印去除按钮 */
+/* Watermark Button */
 .btn-watermark {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -188,7 +188,7 @@
     cursor: not-allowed;
 }
 
-/* 进度显示 */
+/* Watermark Progress */
 .watermark-progress .progress {
     height: 1.5rem;
     background-color: #e9ecef;
@@ -201,7 +201,7 @@
     font-weight: 600;
 }
 
-/* 结果对比 */
+/* Results */
 .watermark-result {
     background: #f8f9fa;
     border-radius: var(--border-radius);
@@ -258,7 +258,7 @@
     text-align: center;
 }
 
-/* 高级设置 */
+/* Settings */
 .watermark-settings {
     background: #f8f9fa;
     border-radius: var(--border-radius);
@@ -271,7 +271,7 @@
     border-top: 1px solid var(--border-color);
 }
 
-/* 响应式调整 */
+/* Responsive */
 @media (max-width: 768px) {
     .compare-container {
         flex-direction: column;

@@ -1,9 +1,11 @@
+import { Utils } from '../utils.js';
+
 /**
- * 水印去除模块
- * 全自动水印检测与去除前端逻辑
+ * Watermark Removal Module
+ * Logic for automated watermark detection and removal
  */
 
-class WatermarkModule {
+export class WatermarkModule {
     constructor() {
         this.currentFile = null;
         this.currentFolder = null;
@@ -16,73 +18,54 @@ class WatermarkModule {
 
     init() {
         this.bindEvents();
-        this.initTabSwitch();
     }
 
-    // 初始化Tab切换
-    initTabSwitch() {
-        document.querySelectorAll('.tool-tabs .tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const target = tab.dataset.tab;
-                this.switchTab(target);
-            });
-        });
-    }
-
-    switchTab(target) {
-        // 隐藏所有panel
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        // 显示目标panel
-        document.getElementById(`${target}-panel`).classList.add('active');
-        // 更新tab状态
-        document.querySelectorAll('.tool-tabs .tab').forEach(t => t.classList.remove('active'));
-        document.querySelector(`[data-tab="${target}"]`).classList.add('active');
-    }
-
-    // 绑定事件
+    // Bind events
     bindEvents() {
-        // 模式切换
+        // Mode switch
         document.querySelectorAll('input[name="watermarkMode"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.switchMode(e.target.value));
         });
 
-        // 单张上传
+        // Single file upload
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('watermarkFileInput');
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
 
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                this.handleFileSelect(files[0]);
-            }
-        });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleFileSelect(files[0]);
+                }
+            });
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                this.handleFileSelect(e.target.files[0]);
-            }
-        });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
 
-        // 批量处理 - 文件夹选择
+        // Batch processing - Folder selection
         const browseBtn = document.getElementById('browseWatermarkFolderBtn');
         if (browseBtn) {
             browseBtn.addEventListener('click', () => this.selectFolder());
         }
 
-        // 高级设置
+        // Advanced Settings
         const advancedToggle = document.getElementById('showAdvancedSettings');
         if (advancedToggle) {
             advancedToggle.addEventListener('change', (e) => {
@@ -91,7 +74,7 @@ class WatermarkModule {
             });
         }
 
-        // 置信度滑块
+        // Confidence Slider
         const confidenceSlider = document.getElementById('confidenceThreshold');
         if (confidenceSlider) {
             confidenceSlider.addEventListener('input', (e) => {
@@ -99,7 +82,7 @@ class WatermarkModule {
             });
         }
 
-        // 手动调整
+        // Manual Adjust
         const manualAdjust = document.getElementById('manualAdjust');
         if (manualAdjust) {
             manualAdjust.addEventListener('change', (e) => {
@@ -108,26 +91,26 @@ class WatermarkModule {
             });
         }
 
-        // 开始处理按钮
+        // Start Processing Button
         const startBtn = document.getElementById('startWatermarkBtn');
         if (startBtn) {
             startBtn.addEventListener('click', () => this.startProcessing());
         }
 
-        // 重新处理
+        // Reprocess
         const reprocessBtn = document.getElementById('reprocessBtn');
         if (reprocessBtn) {
             reprocessBtn.addEventListener('click', () => this.reset());
         }
 
-        // 保存结果
+        // Save Result
         const saveBtn = document.getElementById('saveResultBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => this.saveResult());
         }
     }
 
-    // 切换单张/批量模式
+    // Switch Single/Batch Mode
     switchMode(mode) {
         const singleArea = document.getElementById('singleUploadArea');
         const batchArea = document.getElementById('batchUploadArea');
@@ -143,24 +126,24 @@ class WatermarkModule {
         this.reset();
     }
 
-    // 处理文件选择
+    // Handle File Selection
     handleFileSelect(file) {
         if (!file.type.startsWith('image/')) {
-            this.showToast('请选择图片文件', 'error');
+            Utils.showToast('请选择图片文件', 'error');
             return;
         }
 
         this.currentFile = file;
         this.currentFolder = null;
 
-        // 显示预览
+        // Show Preview
         this.showFilePreview(file);
 
-        // 自动开始检测
+        // Auto start detection
         this.detectWatermark();
     }
 
-    // 显示文件预览
+    // Show File Preview
     showFilePreview(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -174,10 +157,10 @@ class WatermarkModule {
         reader.readAsDataURL(file);
     }
 
-    // 选择文件夹（模拟）
+    // Select Folder (Mock)
     async selectFolder() {
         try {
-            // 使用原生文件选择器选择多个文件
+            // Use native file picker to select multiple files
             const input = document.createElement('input');
             input.type = 'file';
             input.webkitdirectory = true;
@@ -190,7 +173,7 @@ class WatermarkModule {
                 );
 
                 if (files.length === 0) {
-                    this.showToast('未找到图片文件', 'warning');
+                    Utils.showToast('未找到图片文件', 'warning');
                     return;
                 }
 
@@ -206,11 +189,11 @@ class WatermarkModule {
 
             input.click();
         } catch (error) {
-            this.showToast('选择文件夹失败: ' + error.message, 'error');
+            Utils.showToast('选择文件夹失败: ' + error.message, 'error');
         }
     }
 
-    // 显示文件列表
+    // Show File List
     showFileList(files) {
         const container = document.getElementById('watermarkFileList');
         container.innerHTML = files.map((file, index) => `
@@ -224,7 +207,7 @@ class WatermarkModule {
         `).join('');
     }
 
-    // 检测水印
+    // Detect Watermark
     async detectWatermark() {
         if (!this.currentFile) return;
 
@@ -239,7 +222,7 @@ class WatermarkModule {
 
             let result;
             if (mode === 'quick') {
-                // 快速模式跳过检测
+                // Quick mode skips detection
                 result = {
                     success: true,
                     detection: {
@@ -257,24 +240,24 @@ class WatermarkModule {
             }
 
             if (!result.success) {
-                this.showToast('未检测到水印，请使用手动模式', 'warning');
+                Utils.showToast('未检测到水印，请使用手动模式', 'warning');
                 return;
             }
 
             this.detectionResult = result.detection;
 
-            // 显示检测结果
+            // Show detection result
             this.showDetectionResult(result);
 
-            // 启用处理按钮
+            // Enable process button
             document.getElementById('startWatermarkBtn').disabled = false;
 
         } catch (error) {
-            this.showToast('检测失败: ' + error.message, 'error');
+            Utils.showToast('检测失败: ' + error.message, 'error');
         }
     }
 
-    // 显示检测结果
+    // Show Detection Result
     showDetectionResult(result) {
         const preview = document.getElementById('detectionPreview');
         preview.style.display = 'block';
@@ -291,7 +274,7 @@ class WatermarkModule {
             document.getElementById('detectionRegion').textContent =
                 `区域: (${det.bbox.join(', ')})`;
 
-            // 填充手动调整值
+            // Fill manual adjust values
             document.getElementById('bboxX1').value = det.bbox[0];
             document.getElementById('bboxY1').value = det.bbox[1];
             document.getElementById('bboxX2').value = det.bbox[2];
@@ -302,7 +285,7 @@ class WatermarkModule {
         setTimeout(() => this.hideProgress(), 1000);
     }
 
-    // 开始处理
+    // Start Processing
     async startProcessing() {
         const mode = document.querySelector('input[name="watermarkMode"]:checked').value;
 
@@ -313,17 +296,17 @@ class WatermarkModule {
         }
     }
 
-    // 单张处理
+    // Process Single File
     async processSingle() {
         if (!this.currentFile) {
-            this.showToast('请先选择图片', 'warning');
+            Utils.showToast('请先选择图片', 'warning');
             return;
         }
 
         const formData = new FormData();
         formData.append('file', this.currentFile);
 
-        // 获取手动调整的区域
+        // Get manual adjust region
         const manualAdjust = document.getElementById('manualAdjust').checked;
         if (manualAdjust) {
             const bbox = [
@@ -343,14 +326,14 @@ class WatermarkModule {
 
             let response;
             if (detectionMode === 'quick') {
-                // 使用快速模式
+                // Use quick mode
                 formData.append('preset', 'doubao_bottom_right');
                 response = await fetch('/api/watermark/quick-remove', {
                     method: 'POST',
                     body: formData
                 });
             } else {
-                // 使用自动检测模式
+                // Use auto detection mode
                 const confidence = document.getElementById('confidenceThreshold').value;
                 formData.append('min_confidence', confidence);
                 formData.append('visualize', 'true');
@@ -369,27 +352,27 @@ class WatermarkModule {
 
             this.showProgress('处理完成！', 100);
 
-            // 显示结果
+            // Show result
             await this.showResult(result);
 
         } catch (error) {
-            this.showToast('处理失败: ' + error.message, 'error');
+            Utils.showToast('处理失败: ' + error.message, 'error');
             this.hideProgress();
             document.getElementById('startWatermarkBtn').disabled = false;
         }
     }
 
-    // 批量处理
+    // Process Batch
     async processBatch() {
         if (this.fileList.length === 0) {
-            this.showToast('请先选择文件夹', 'warning');
+            Utils.showToast('请先选择文件夹', 'warning');
             return;
         }
 
         const skipLowConfidence = document.getElementById('skipLowConfidence').checked;
 
         try {
-            // 创建虚拟的文件夹路径
+            // Create virtual folder paths
             const inputFolder = '/tmp/watermark_batch_input';
             const outputFolder = '/tmp/watermark_batch_output';
 
@@ -413,11 +396,11 @@ class WatermarkModule {
             this.pollBatchProgress();
 
         } catch (error) {
-            this.showToast('批量处理启动失败: ' + error.message, 'error');
+            Utils.showToast('批量处理启动失败: ' + error.message, 'error');
         }
     }
 
-    // 轮询批量进度
+    // Poll Batch Progress
     async pollBatchProgress() {
         if (!this.taskId) return;
 
@@ -432,7 +415,7 @@ class WatermarkModule {
 
                 const task = result.task;
 
-                // 更新进度
+                // Update progress
                 const pct = task.progress.percentage;
                 this.showProgress(
                     `正在处理: ${task.current_file || '...'}`,
@@ -440,7 +423,7 @@ class WatermarkModule {
                     `成功:${task.progress.successful} 跳过:${task.progress.skipped} 失败:${task.progress.failed}`
                 );
 
-                // 更新文件列表状态
+                // Update file list status
                 this.updateFileListStatus(task);
 
                 if (task.status === 'completed' || task.status === 'failed') {
@@ -452,41 +435,41 @@ class WatermarkModule {
                 setTimeout(poll, 500);
 
             } catch (error) {
-                this.showToast('获取进度失败: ' + error.message, 'error');
+                Utils.showToast('获取进度失败: ' + error.message, 'error');
             }
         };
 
         poll();
     }
 
-    // 更新文件列表状态
+    // Update File List Status
     updateFileListStatus(task) {
-        // 简化显示，实际应该根据task详情更新
+        // Simplified display, should actually update based on task details
         const progressText = `${task.progress.processed}/${task.progress.total}`;
         document.getElementById('watermarkStatus').textContent =
             `处理中 ${progressText}`;
     }
 
-    // 显示批量完成
+    // Show Batch Complete
     showBatchComplete(task) {
-        this.showToast(
+        Utils.showToast(
             `批量处理完成! 成功:${task.progress.successful} 失败:${task.progress.failed}`,
             task.progress.failed > 0 ? 'warning' : 'success'
         );
     }
 
-    // 显示处理结果
+    // Show Result
     async showResult(result) {
         const resultDiv = document.getElementById('watermarkResult');
         resultDiv.style.display = 'block';
 
-        // 原图
+        // Original Image
         if (this.currentFile) {
             const originalUrl = URL.createObjectURL(this.currentFile);
             document.getElementById('originalImage').src = originalUrl;
         }
 
-        // 处理后的图片
+        // Processed Image
         if (result.output_url) {
             const processedResponse = await fetch(result.output_url);
             const processedBlob = await processedResponse.blob();
@@ -494,7 +477,7 @@ class WatermarkModule {
             document.getElementById('processedImage').src = processedUrl;
         }
 
-        // 结果信息
+        // Result Info
         const det = result.detection || {};
         document.getElementById('resultBbox').textContent =
             det.bbox ? `(${det.bbox.join(', ')})` : '自动检测';
@@ -506,26 +489,26 @@ class WatermarkModule {
         this.hideProgress();
     }
 
-    // 保存结果
+    // Save Result
     async saveResult() {
         if (!this.currentFile) return;
 
         try {
-            // 获取处理后的图片
+            // Get processed image
             const processedImg = document.getElementById('processedImage');
             if (!processedImg.src) {
-                this.showToast('没有可保存的结果', 'warning');
+                Utils.showToast('没有可保存的结果', 'warning');
                 return;
             }
 
-            // 下载图片
+            // Download image
             const response = await fetch(processedImg.src);
             const blob = await response.blob();
 
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
 
-            // 在原文件名前添加前缀
+            // Add prefix to original filename
             const originalName = this.currentFile.name;
             const nameParts = originalName.split('.');
             const ext = nameParts.pop();
@@ -536,14 +519,14 @@ class WatermarkModule {
             a.click();
 
             URL.revokeObjectURL(url);
-            this.showToast('已保存到下载目录', 'success');
+            Utils.showToast('已保存到下载目录', 'success');
 
         } catch (error) {
-            this.showToast('保存失败: ' + error.message, 'error');
+            Utils.showToast('保存失败: ' + error.message, 'error');
         }
     }
 
-    // 显示进度
+    // Show Progress
     showProgress(status, percentage, detail = '') {
         const progressDiv = document.getElementById('watermarkProgress');
         progressDiv.style.display = 'block';
@@ -554,24 +537,24 @@ class WatermarkModule {
         document.getElementById('watermarkProgressDetail').textContent = detail;
     }
 
-    // 隐藏进度
+    // Hide Progress
     hideProgress() {
         document.getElementById('watermarkProgress').style.display = 'none';
     }
 
-    // 重置
+    // Reset
     reset() {
         this.currentFile = null;
         this.detectionResult = null;
 
-        // 重置UI
+        // Reset UI
         document.getElementById('dropZone').innerHTML = `
             <i class="fas fa-cloud-upload-alt upload-icon"></i>
             <p class="upload-text">点击上传或拖拽图片到此处</p>
             <p class="upload-hint">支持 JPG、PNG、BMP、WEBP 格式</p>
         `;
         
-        // 重置文件输入框
+        // Reset file input
         const fileInput = document.getElementById('watermarkFileInput');
         if (fileInput) {
             fileInput.value = '';
@@ -583,23 +566,4 @@ class WatermarkModule {
 
         this.hideProgress();
     }
-
-    // 显示Toast提示
-    showToast(message, type = 'info') {
-        const toast = document.getElementById('toastAlert');
-        const toastBody = document.getElementById('toastBody');
-        const toastTitle = document.getElementById('toastTitle');
-
-        toastBody.textContent = message;
-
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-    }
 }
-
-// 初始化
-let watermarkModule;
-
-document.addEventListener('DOMContentLoaded', () => {
-    watermarkModule = new WatermarkModule();
-});
