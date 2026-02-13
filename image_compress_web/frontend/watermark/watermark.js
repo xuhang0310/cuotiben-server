@@ -569,17 +569,19 @@ class WatermarkModule {
             <i class="fas fa-cloud-upload-alt upload-icon"></i>
             <p class="upload-text">点击上传或拖拽图片到此处</p>
             <p class="upload-hint">支持 JPG、PNG、BMP、WEBP 格式</p>
-            <input type="file" id="watermarkFileInput" accept="image/*" style="display: none;">
         `;
+        
+        // 重置文件输入框
+        const fileInput = document.getElementById('watermarkFileInput');
+        if (fileInput) {
+            fileInput.value = '';
+        }
 
         document.getElementById('detectionPreview').style.display = 'none';
         document.getElementById('watermarkResult').style.display = 'none';
         document.getElementById('startWatermarkBtn').disabled = true;
 
         this.hideProgress();
-
-        // 重新绑定上传事件
-        this.bindEvents();
     }
 
     // 显示Toast提示
