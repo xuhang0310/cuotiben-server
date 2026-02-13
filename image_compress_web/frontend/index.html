@@ -3,104 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片压缩工具网页版</title>
+    <title>图片工具箱 - 压缩与水印去除</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="watermark/watermark.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1 class="mb-0"><i class="fas fa-images"></i> 图片压缩工具网页版</h1>
+            <h1 class="mb-0"><i class="fas fa-images"></i> 图片工具箱</h1>
         </div>
-        
-        <div class="card">
-            <div class="card-body">
-                <!-- フルダ選択 -->
-                <div class="mb-4">
-                    <label for="folderPath" class="form-label">选择图片文件夹:</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="folderPath" placeholder="点击右侧按钮选择文件夹" readonly>
-                        <button class="btn btn-outline-secondary" type="button" id="browseFolderBtn">
-                            <i class="fas fa-folder-open"></i> 浏览
+
+        <!-- Tab导航 -->
+        <div class="tool-tabs">
+            <div class="tab active" data-tab="compress">
+                <i class="fas fa-compress-alt"></i> 图片压缩
+            </div>
+            <div class="tab" data-tab="watermark">
+                <i class="fas fa-tint-slash"></i> 水印去除
+            </div>
+        </div>
+
+        <!-- 图片压缩面板 -->
+        <div id="compress-panel" class="panel active">
+            <div class="card">
+                <div class="card-body">
+                    <!-- 文件夹选择 -->
+                    <div class="mb-4">
+                        <label for="folderPath" class="form-label">选择图片文件夹:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="folderPath" placeholder="点击右侧按钮选择文件夹" readonly>
+                            <button class="btn btn-outline-secondary" type="button" id="browseFolderBtn">
+                                <i class="fas fa-folder-open"></i> 浏览
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 压缩参数设置 -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="targetSize" class="form-label">目标大小 (KB):</label>
+                                <input type="number" class="form-control" id="targetSize" value="128" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="quality" class="form-label">图片质量 (1-100):</label>
+                                <input type="number" class="form-control" id="quality" value="85" min="1" max="100">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="format" class="form-label">输出格式:</label>
+                                <select class="form-select" id="format">
+                                    <option value="保持原格式" selected>保持原格式</option>
+                                    <option value="JPEG">JPEG</option>
+                                    <option value="PNG">PNG</option>
+                                    <option value="WEBP">WEBP</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 选择控制 -->
+                    <div class="selection-controls">
+                        <button class="btn btn-outline-secondary btn-sm" id="selectAllBtn">全选</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="deselectAllBtn">取消全选</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="invertSelectionBtn">反选</button>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="filterToggle">
+                            <label class="form-check-label" for="filterToggle">过滤小文件</label>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm" id="sortBySizeBtn">按大小排序</button>
+                        <span class="ms-auto text-muted" id="selectedCount">已选择: 0 张</span>
+                    </div>
+
+                    <!-- 文件列表 -->
+                    <div class="mb-4">
+                        <div class="file-list-header">
+                            <h5>文件夹内容:</h5>
+                            <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">刷新</button>
+                        </div>
+                        <div id="fileList" class="file-list-container">
+                            <p class="text-muted text-center py-4">请选择一个文件夹以查看内容</p>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button class="btn btn-outline-secondary flex-fill" id="cancelBtn">取消</button>
+                        <button class="btn btn-orange flex-fill" id="compressBtn">开始压缩</button>
+                    </div>
+
+                    <!-- 进度显示 -->
+                    <div id="progressContainer" class="progress-container">
+                        <div class="alert alert-info" role="alert">
+                            <h5>处理状态: <span id="statusMessage">初始化中...</span></h5>
+                            <div class="progress mt-2">
+                                <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2">
+                                <small id="progressDetails">等待开始...</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 结果显示 -->
+                    <div id="resultMessage" class="alert" role="alert" style="display: none;">
+                        <h5>处理完成!</h5>
+                        <p id="resultText"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 水印去除面板 -->
+        <div id="watermark-panel" class="panel">
+            <div class="card">
+                <div class="card-body">
+                    <!-- 处理模式选择 -->
+                    <div class="watermark-mode-selector mb-4">
+                        <label class="form-label">处理模式:</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="watermarkMode" id="modeSingle" value="single" checked>
+                            <label class="btn btn-outline-primary" for="modeSingle">
+                                <i class="fas fa-image"></i> 单张处理
+                            </label>
+
+                            <input type="radio" class="btn-check" name="watermarkMode" id="modeBatch" value="batch">
+                            <label class="btn btn-outline-primary" for="modeBatch">
+                                <i class="fas fa-images"></i> 批量处理
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 单张处理上传区 -->
+                    <div id="singleUploadArea" class="upload-area">
+                        <div class="upload-zone" id="dropZone">
+                            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                            <p class="upload-text">点击上传或拖拽图片到此处</p>
+                            <p class="upload-hint">支持 JPG、PNG、BMP、WEBP 格式</p>
+                            <input type="file" id="watermarkFileInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+
+                    <!-- 批量处理选择区 -->
+                    <div id="batchUploadArea" class="upload-area" style="display: none;">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="watermarkFolderPath" placeholder="选择要处理的文件夹" readonly>
+                            <button class="btn btn-outline-secondary" type="button" id="browseWatermarkFolderBtn">
+                                <i class="fas fa-folder-open"></i> 浏览
+                            </button>
+                        </div>
+                        <div id="watermarkFileList" class="watermark-file-list">
+                            <p class="text-muted text-center">请选择一个文件夹</p>
+                        </div>
+                    </div>
+
+                    <!-- 高级设置 -->
+                    <div class="watermark-settings mt-4">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="showAdvancedSettings">
+                            <label class="form-check-label" for="showAdvancedSettings">
+                                <i class="fas fa-cog"></i> 高级设置
+                            </label>
+                        </div>
+                        <div id="advancedSettingsPanel" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">检测模式:</label>
+                                    <select class="form-select" id="detectionMode">
+                                        <option value="auto" selected>自动检测</option>
+                                        <option value="quick">快速模式（预设位置）</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">置信度阈值: <span id="confidenceValue">0.5</span></label>
+                                    <input type="range" class="form-range" id="confidenceThreshold" min="0.1" max="0.9" step="0.1" value="0.5">
+                                </div>
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="skipLowConfidence" checked>
+                                <label class="form-check-label" for="skipLowConfidence">
+                                    跳过低置信度图片
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 检测预览区 -->
+                    <div id="detectionPreview" class="detection-preview mt-4" style="display: none;">
+                        <h6><i class="fas fa-search"></i> 检测结果</h6>
+                        <div class="preview-container">
+                            <img id="detectionPreviewImg" src="" alt="检测预览">
+                            <div class="detection-info">
+                                <span class="badge bg-primary" id="detectionConfidence">置信度: --</span>
+                                <span class="badge bg-info" id="detectionRegion">区域: --</span>
+                            </div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="manualAdjust">
+                            <label class="form-check-label" for="manualAdjust">
+                                手动调整水印区域
+                            </label>
+                        </div>
+                        <!-- 手动调整控件 -->
+                        <div id="manualAdjustControls" style="display: none;">
+                            <div class="row mt-2">
+                                <div class="col-3">
+                                    <label>X1: <input type="number" class="form-control form-control-sm" id="bboxX1"></label>
+                                </div>
+                                <div class="col-3">
+                                    <label>Y1: <input type="number" class="form-control form-control-sm" id="bboxY1"></label>
+                                </div>
+                                <div class="col-3">
+                                    <label>X2: <input type="number" class="form-control form-control-sm" id="bboxX2"></label>
+                                </div>
+                                <div class="col-3">
+                                    <label>Y2: <input type="number" class="form-control form-control-sm" id="bboxY2"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 处理按钮 -->
+                    <div class="d-grid gap-2 mt-4">
+                        <button class="btn btn-watermark" id="startWatermarkBtn" disabled>
+                            <i class="fas fa-magic"></i> 开始去除水印
                         </button>
                     </div>
-                </div>
 
-                <!-- 圧縮パラメータ設定 -->
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="targetSize" class="form-label">目标大小 (KB):</label>
-                            <input type="number" class="form-control" id="targetSize" value="128" min="1">
+                    <!-- 处理进度 -->
+                    <div id="watermarkProgress" class="watermark-progress mt-4" style="display: none;">
+                        <div class="alert alert-info">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span id="watermarkStatus">准备处理...</span>
+                                <span id="watermarkProgressText">0%</span>
+                            </div>
+                            <div class="progress mt-2">
+                                <div id="watermarkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                            </div>
+                            <small id="watermarkProgressDetail" class="text-muted"></small>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="quality" class="form-label">图片质量 (1-100):</label>
-                            <input type="number" class="form-control" id="quality" value="85" min="1" max="100">
+
+                    <!-- 结果对比区 -->
+                    <div id="watermarkResult" class="watermark-result mt-4" style="display: none;">
+                        <h6><i class="fas fa-check-circle"></i> 处理完成</h6>
+                        <div class="compare-container">
+                            <div class="compare-item">
+                                <span class="compare-label">原图</span>
+                                <img id="originalImage" src="" alt="原图">
+                            </div>
+                            <div class="compare-divider">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                            <div class="compare-item">
+                                <span class="compare-label">处理后</span>
+                                <img id="processedImage" src="" alt="处理后">
+                            </div>
+                        </div>
+                        <div class="result-actions mt-3">
+                            <button class="btn btn-success" id="saveResultBtn">
+                                <i class="fas fa-save"></i> 保存到原图目录
+                            </button>
+                            <button class="btn btn-outline-secondary" id="reprocessBtn">
+                                <i class="fas fa-redo"></i> 重新处理
+                            </button>
+                        </div>
+                        <div class="result-info mt-2">
+                            <small class="text-muted">
+                                检测区域: <span id="resultBbox">--</span> |
+                                置信度: <span id="resultConfidence">--</span> |
+                                耗时: <span id="resultTime">--</span>s
+                            </small>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="format" class="form-label">输出格式:</label>
-                            <select class="form-select" id="format">
-                                <option value="保持原格式" selected>保持原格式</option>
-                                <option value="JPEG">JPEG</option>
-                                <option value="PNG">PNG</option>
-                                <option value="WEBP">WEBP</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 遰択コントロール -->
-                <div class="selection-controls">
-                    <button class="btn btn-outline-secondary btn-sm" id="selectAllBtn">全选</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="deselectAllBtn">取消全选</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="invertSelectionBtn">反选</button>
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="filterToggle">
-                        <label class="form-check-label" for="filterToggle">过滤小文件</label>
-                    </div>
-                    <button class="btn btn-outline-secondary btn-sm" id="sortBySizeBtn">按大小排序</button>
-                    <span class="ms-auto text-muted" id="selectedCount">已选择: 0 张</span>
-                </div>
-
-                <!-- ファイルリスト -->
-                <div class="mb-4">
-                    <div class="file-list-header">
-                        <h5>文件夹内容:</h5>
-                        <button class="btn btn-outline-secondary btn-sm" id="refreshBtn">刷新</button>
-                    </div>
-                    <div id="fileList" class="file-list-container">
-                        <p class="text-muted text-center py-4">请选择一个文件夹以查看内容</p>
-                    </div>
-                </div>
-
-                <!-- 操作ボタン -->
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <button class="btn btn-outline-secondary flex-fill" id="cancelBtn">取消</button>
-                    <button class="btn btn-orange flex-fill" id="compressBtn">开始压缩</button>
-                </div>
-
-                <!-- プロレス表示 -->
-                <div id="progressContainer" class="progress-container">
-                    <div class="alert alert-info" role="alert">
-                        <h5>处理状态: <span id="statusMessage">初始化中...</span></h5>
-                        <div class="progress mt-2">
-                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                        </div>
-                        <div class="mt-2">
-                            <small id="progressDetails">等待开始...</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 結果表示 -->
-                <div id="resultMessage" class="alert" role="alert" style="display: none;">
-                    <h5>处理完成!</h5>
-                    <p id="resultText"></p>
                 </div>
             </div>
         </div>
@@ -113,9 +293,7 @@
                 <strong class="me-auto" id="toastTitle">提示</strong>
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
-            <div class="toast-body" id="toastBody">
-                <!-- 提示内容将在这里显示 -->
-            </div>
+            <div class="toast-body" id="toastBody"></div>
         </div>
     </div>
 
@@ -141,5 +319,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
+    <script src="watermark/watermark.js"></script>
 </body>
 </html>

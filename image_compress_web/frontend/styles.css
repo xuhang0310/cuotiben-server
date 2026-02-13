@@ -437,3 +437,45 @@ input:checked + .slider:before {
     margin-bottom: 0.5rem;
   }
 }
+
+/* ========== Tab切换样式 ========== */
+.tool-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  background: var(--card-background);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  padding: 0 1rem;
+}
+
+.tool-tabs .tab {
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-weight: 600;
+  color: #6c757d;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tool-tabs .tab:hover {
+  color: var(--primary-orange);
+  background: rgba(255, 126, 20, 0.05);
+}
+
+.tool-tabs .tab.active {
+  border-bottom-color: var(--primary-orange);
+  color: var(--primary-orange);
+}
+
+/* Panel显示控制 */
+.panel {
+  display: none;
+}
+
+.panel.active {
+  display: block;
+}
