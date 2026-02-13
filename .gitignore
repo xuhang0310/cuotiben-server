@@ -9,3 +9,4 @@ app/core/__pycache__
 *.pid
 *.md
 *.md
+/image_compress_web/frontend/h5

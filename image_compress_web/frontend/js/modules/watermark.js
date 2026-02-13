@@ -2,31 +2,29 @@ import { Utils } from '../utils.js';
 
 /**
  * Watermark Removal Module
- * Logic for automated watermark detection and removal
+ * Logic for single image watermark removal using inpainting (LaMa)
+ * Refactored to match H5 style logic
  */
 
 export class WatermarkModule {
     constructor() {
         this.currentFile = null;
-        this.currentFolder = null;
-        this.fileList = [];
-        this.detectionResult = null;
-        this.taskId = null;
+        this.originalImage = null;
+        this.isDrawing = false;
+        this.lastX = 0;
+        this.lastY = 0;
 
+        // Initialize
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.initCanvas();
     }
 
     // Bind events
     bindEvents() {
-        // Mode switch
-        document.querySelectorAll('input[name="watermarkMode"]').forEach(radio => {
-            radio.addEventListener('change', (e) => this.switchMode(e.target.value));
-        });
-
         // Single file upload
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('watermarkFileInput');
@@ -59,48 +57,24 @@ export class WatermarkModule {
             });
         }
 
-        // Batch processing - Folder selection
-        const browseBtn = document.getElementById('browseWatermarkFolderBtn');
-        if (browseBtn) {
-            browseBtn.addEventListener('click', () => this.selectFolder());
-        }
-
-        // Advanced Settings
-        const advancedToggle = document.getElementById('showAdvancedSettings');
-        if (advancedToggle) {
-            advancedToggle.addEventListener('change', (e) => {
-                document.getElementById('advancedSettingsPanel').style.display =
-                    e.target.checked ? 'block' : 'none';
+        // Brush size
+        const brushSizeInput = document.getElementById('brushSize');
+        if (brushSizeInput) {
+            brushSizeInput.addEventListener('input', (e) => {
+                document.getElementById('brushSizeValue').textContent = e.target.value;
             });
         }
 
-        // Confidence Slider
-        const confidenceSlider = document.getElementById('confidenceThreshold');
-        if (confidenceSlider) {
-            confidenceSlider.addEventListener('input', (e) => {
-                document.getElementById('confidenceValue').textContent = e.target.value;
-            });
+        // Clear Mask
+        const clearBtn = document.getElementById('clearMaskBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.clearMask());
         }
 
-        // Manual Adjust
-        const manualAdjust = document.getElementById('manualAdjust');
-        if (manualAdjust) {
-            manualAdjust.addEventListener('change', (e) => {
-                document.getElementById('manualAdjustControls').style.display =
-                    e.target.checked ? 'block' : 'none';
-            });
-        }
-
-        // Start Processing Button
-        const startBtn = document.getElementById('startWatermarkBtn');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => this.startProcessing());
-        }
-
-        // Reprocess
-        const reprocessBtn = document.getElementById('reprocessBtn');
-        if (reprocessBtn) {
-            reprocessBtn.addEventListener('click', () => this.reset());
+        // Run Inpainting
+        const runBtn = document.getElementById('runInpaintingBtn');
+        if (runBtn) {
+            runBtn.addEventListener('click', () => this.runInpainting());
         }
 
         // Save Result
@@ -108,22 +82,39 @@ export class WatermarkModule {
         if (saveBtn) {
             saveBtn.addEventListener('click', () => this.saveResult());
         }
-    }
 
-    // Switch Single/Batch Mode
-    switchMode(mode) {
-        const singleArea = document.getElementById('singleUploadArea');
-        const batchArea = document.getElementById('batchUploadArea');
-
-        if (mode === 'single') {
-            singleArea.style.display = 'block';
-            batchArea.style.display = 'none';
-        } else {
-            singleArea.style.display = 'none';
-            batchArea.style.display = 'block';
+        // Reprocess
+        const reprocessBtn = document.getElementById('reprocessBtn');
+        if (reprocessBtn) {
+            reprocessBtn.addEventListener('click', () => this.clearMask());
         }
 
-        this.reset();
+        // Next Image
+        const nextImageBtn = document.getElementById('nextImageBtn');
+        if (nextImageBtn) {
+            nextImageBtn.addEventListener('click', () => this.reset());
+        }
+    }
+
+    initCanvas() {
+        this.imageCanvas = document.getElementById('imageCanvas');
+        this.maskCanvas = document.getElementById('maskCanvas');
+        
+        if (!this.imageCanvas || !this.maskCanvas) return;
+
+        this.ctxImage = this.imageCanvas.getContext('2d');
+        this.ctxMask = this.maskCanvas.getContext('2d');
+
+        // Drawing events
+        this.maskCanvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+        this.maskCanvas.addEventListener('mousemove', (e) => this.draw(e));
+        this.maskCanvas.addEventListener('mouseup', () => this.stopDrawing());
+        this.maskCanvas.addEventListener('mouseleave', () => this.stopDrawing());
+        
+        // Touch events
+        this.maskCanvas.addEventListener('touchstart', (e) => this.handleTouchStart(e));
+        this.maskCanvas.addEventListener('touchmove', (e) => this.handleTouchMove(e));
+        this.maskCanvas.addEventListener('touchend', () => this.handleTouchEnd());
     }
 
     // Handle File Selection
@@ -134,436 +125,324 @@ export class WatermarkModule {
         }
 
         this.currentFile = file;
-        this.currentFolder = null;
 
-        // Show Preview
-        this.showFilePreview(file);
-
-        // Auto start detection
-        this.detectWatermark();
-    }
-
-    // Show File Preview
-    showFilePreview(file) {
+        // Load image
         const reader = new FileReader();
         reader.onload = (e) => {
-            const dropZone = document.getElementById('dropZone');
-            dropZone.innerHTML = `
-                <img src="${e.target.result}" style="max-height: 200px; max-width: 100%; border-radius: 8px;">
-                <p class="mt-2 mb-0">${file.name}</p>
-                <p class="text-muted small">点击更换图片</p>
-            `;
+            const img = new Image();
+            img.onload = () => {
+                this.originalImage = img;
+                this.showEditor();
+                this.drawImageOnCanvas();
+            };
+            img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
 
-    // Select Folder (Mock)
-    async selectFolder() {
-        try {
-            // Use native file picker to select multiple files
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.webkitdirectory = true;
-            input.directory = true;
-            input.multiple = true;
-
-            input.onchange = (e) => {
-                const files = Array.from(e.target.files).filter(f =>
-                    f.type.startsWith('image/')
-                );
-
-                if (files.length === 0) {
-                    Utils.showToast('未找到图片文件', 'warning');
-                    return;
-                }
-
-                this.fileList = files;
-                this.currentFolder = files[0].path || files[0].name;
-
-                document.getElementById('watermarkFolderPath').value =
-                    `已选择 ${files.length} 张图片`;
-
-                this.showFileList(files);
-                document.getElementById('startWatermarkBtn').disabled = false;
-            };
-
-            input.click();
-        } catch (error) {
-            Utils.showToast('选择文件夹失败: ' + error.message, 'error');
-        }
+    showEditor() {
+        document.getElementById('singleUploadArea').style.display = 'none';
+        document.getElementById('imageEditor').style.display = 'block';
+        document.getElementById('watermarkResult').style.display = 'none';
     }
 
-    // Show File List
-    showFileList(files) {
-        const container = document.getElementById('watermarkFileList');
-        container.innerHTML = files.map((file, index) => `
-            <div class="file-item" data-index="${index}">
-                <i class="fas fa-image file-icon"></i>
-                <div class="file-info">
-                    <div class="file-name">${file.name}</div>
-                    <div class="file-status pending" id="status-${index}">等待处理</div>
-                </div>
-            </div>
-        `).join('');
+    drawImageOnCanvas() {
+        if (!this.originalImage) return;
+
+        // Use natural dimensions for the canvas resolution
+        this.imageCanvas.width = this.originalImage.naturalWidth;
+        this.imageCanvas.height = this.originalImage.naturalHeight;
+        this.maskCanvas.width = this.originalImage.naturalWidth;
+        this.maskCanvas.height = this.originalImage.naturalHeight;
+
+        // Draw image at full resolution
+        this.ctxImage.clearRect(0, 0, this.imageCanvas.width, this.imageCanvas.height);
+        this.ctxImage.drawImage(this.originalImage, 0, 0);
+
+        // Clear mask
+        this.clearMask();
     }
 
-    // Detect Watermark
-    async detectWatermark() {
-        if (!this.currentFile) return;
+    startDrawing(e) {
+        e.preventDefault();
+        if (!this.originalImage) return;
 
-        const formData = new FormData();
-        formData.append('file', this.currentFile);
-        formData.append('visualize', 'true');
-
-        const mode = document.getElementById('detectionMode').value;
-
-        try {
-            this.showProgress('正在检测水印位置...', 10);
-
-            let result;
-            if (mode === 'quick') {
-                // Quick mode skips detection
-                result = {
-                    success: true,
-                    detection: {
-                        bbox: null,
-                        confidence: 0.85,
-                        mode: 'normal'
-                    }
-                };
-            } else {
-                const response = await fetch('/api/watermark/detect-only', {
-                    method: 'POST',
-                    body: formData
-                });
-                result = await response.json();
-            }
-
-            if (!result.success) {
-                Utils.showToast('未检测到水印，请使用手动模式', 'warning');
-                return;
-            }
-
-            this.detectionResult = result.detection;
-
-            // Show detection result
-            this.showDetectionResult(result);
-
-            // Enable process button
-            document.getElementById('startWatermarkBtn').disabled = false;
-
-        } catch (error) {
-            Utils.showToast('检测失败: ' + error.message, 'error');
-        }
+        this.isDrawing = true;
+        const rect = this.maskCanvas.getBoundingClientRect();
+        const scaleX = this.maskCanvas.width / rect.width;
+        const scaleY = this.maskCanvas.height / rect.height;
+        
+        this.lastX = (e.clientX - rect.left) * scaleX;
+        this.lastY = (e.clientY - rect.top) * scaleY;
     }
 
-    // Show Detection Result
-    showDetectionResult(result) {
-        const preview = document.getElementById('detectionPreview');
-        preview.style.display = 'block';
+    draw(e) {
+        if (!this.isDrawing || !this.originalImage) return;
+        e.preventDefault();
 
-        if (result.visualization_url) {
-            document.getElementById('detectionPreviewImg').src = result.visualization_url;
-        }
+        const rect = this.maskCanvas.getBoundingClientRect();
+        const scaleX = this.maskCanvas.width / rect.width;
+        const scaleY = this.maskCanvas.height / rect.height;
 
-        const det = result.detection || result;
-        document.getElementById('detectionConfidence').textContent =
-            `置信度: ${(det.confidence * 100).toFixed(1)}%`;
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
 
-        if (det.bbox) {
-            document.getElementById('detectionRegion').textContent =
-                `区域: (${det.bbox.join(', ')})`;
+        this.ctxMask.globalCompositeOperation = 'source-over';
+        this.ctxMask.strokeStyle = '#ffcc00'; // Yellow like H5
+        
+        const baseBrushSize = parseInt(document.getElementById('brushSize').value);
+        this.ctxMask.lineWidth = baseBrushSize * scaleX; // Scale brush size
+        
+        this.ctxMask.lineCap = 'round';
+        this.ctxMask.lineJoin = 'round';
 
-            // Fill manual adjust values
-            document.getElementById('bboxX1').value = det.bbox[0];
-            document.getElementById('bboxY1').value = det.bbox[1];
-            document.getElementById('bboxX2').value = det.bbox[2];
-            document.getElementById('bboxY2').value = det.bbox[3];
-        }
+        this.ctxMask.beginPath();
+        this.ctxMask.moveTo(this.lastX, this.lastY);
+        this.ctxMask.lineTo(currentX, currentY);
+        this.ctxMask.stroke();
 
-        this.showProgress('检测完成，可以开始处理', 100);
-        setTimeout(() => this.hideProgress(), 1000);
+        this.lastX = currentX;
+        this.lastY = currentY;
     }
 
-    // Start Processing
-    async startProcessing() {
-        const mode = document.querySelector('input[name="watermarkMode"]:checked').value;
-
-        if (mode === 'single') {
-            await this.processSingle();
-        } else {
-            await this.processBatch();
-        }
+    stopDrawing() {
+        this.isDrawing = false;
     }
 
-    // Process Single File
-    async processSingle() {
-        if (!this.currentFile) {
-            Utils.showToast('请先选择图片', 'warning');
+    handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        this.maskCanvas.dispatchEvent(mouseEvent);
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousemove', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        this.maskCanvas.dispatchEvent(mouseEvent);
+    }
+
+    handleTouchEnd() {
+        const mouseEvent = new MouseEvent('mouseup', {});
+        this.maskCanvas.dispatchEvent(mouseEvent);
+    }
+
+    clearMask() {
+        this.ctxMask.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+    }
+
+    async runInpainting() {
+        if (!this.originalImage) return;
+
+        // Check for mask
+        const maskData = this.ctxMask.getImageData(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+        if (!this.hasMaskPixels(maskData)) {
+            Utils.showToast('请先涂抹需要去除的水印区域', 'warning');
             return;
         }
 
-        const formData = new FormData();
-        formData.append('file', this.currentFile);
-
-        // Get manual adjust region
-        const manualAdjust = document.getElementById('manualAdjust').checked;
-        if (manualAdjust) {
-            const bbox = [
-                parseInt(document.getElementById('bboxX1').value),
-                parseInt(document.getElementById('bboxY1').value),
-                parseInt(document.getElementById('bboxX2').value),
-                parseInt(document.getElementById('bboxY2').value)
-            ];
-            formData.append('bbox', JSON.stringify(bbox));
-        }
-
-        const detectionMode = document.getElementById('detectionMode').value;
-
         try {
             this.showProgress('正在去除水印...', 30);
-            document.getElementById('startWatermarkBtn').disabled = true;
+            
+            // Convert to Blobs (using original resolution)
+            const imageBlob = await this.canvasToBlob(this.originalImage);
+            const maskBlob = await this.getMaskBlobForProcessing();
 
-            let response;
-            if (detectionMode === 'quick') {
-                // Use quick mode
-                formData.append('preset', 'doubao_bottom_right');
-                response = await fetch('/api/watermark/quick-remove', {
-                    method: 'POST',
-                    body: formData
-                });
-            } else {
-                // Use auto detection mode
-                const confidence = document.getElementById('confidenceThreshold').value;
-                formData.append('min_confidence', confidence);
-                formData.append('visualize', 'true');
+            // Prepare API call
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'image.png');
+            formData.append('mask', maskBlob, 'mask.png');
+            
+            // Add Lama params (matching H5)
+            const model = 'lama'; 
+            formData.append('ldmSteps', '25');
+            formData.append('ldmSampler', 'plms');
+            formData.append('zitsWireframe', 'true');
+            formData.append('hdStrategy', 'Crop'); 
+            formData.append('hdStrategyCropMargin', '196');
+            formData.append('hdStrategyCropTrigerSize', '800');
+            formData.append('hdStrategyResizeLimit', '2048');
+            formData.append('prompt', '');
+            formData.append('negativePrompt', '');
+            formData.append('croperX', '1109');
+            formData.append('croperY', '512');
+            formData.append('croperHeight', '512');
+            formData.append('croperWidth', '512');
+            formData.append('useCroper', 'false');
+            formData.append('sdMaskBlur', '5');
+            formData.append('sdStrength', '0.75');
+            formData.append('sdSteps', '50');
+            formData.append('sdGuidanceScale', '7.5');
+            formData.append('sdSampler', 'uni_pc');
+            formData.append('sdSeed', '-1');
+            formData.append('sdMatchHistograms', 'false');
+            formData.append('sdScale', '1');
+            formData.append('cv2Radius', '5');
+            formData.append('cv2Flag', 'INPAINT_NS');
+            formData.append('paintByExampleSteps', '50');
+            formData.append('paintByExampleGuidanceScale', '7.5');
+            formData.append('paintByExampleSeed', '-1');
+            formData.append('paintByExampleMaskBlur', '5');
+            formData.append('paintByExampleMatchHistograms', 'false');
+            formData.append('p2pSteps', '50');
+            formData.append('p2pImageGuidanceScale', '1.5');
+            formData.append('p2pGuidanceScale', '7.5');
+            formData.append('controlnet_conditioning_scale', '0.4');
+            formData.append('controlnet_method', 'control_v11p_sd15_canny');
 
-                response = await fetch('/api/watermark/auto-remove', {
-                    method: 'POST',
-                    body: formData
-                });
+            // Send request
+            // Use absolute URL as requested by user
+            const response = await fetch('http://127.0.0.1:8080/inpaint', { 
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Processing failed');
             }
 
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || '处理失败');
-            }
-
-            this.showProgress('处理完成！', 100);
-
-            // Show result
-            await this.showResult(result);
+            const blob = await response.blob();
+            this.showResult(blob);
 
         } catch (error) {
             Utils.showToast('处理失败: ' + error.message, 'error');
             this.hideProgress();
-            document.getElementById('startWatermarkBtn').disabled = false;
         }
     }
 
-    // Process Batch
-    async processBatch() {
-        if (this.fileList.length === 0) {
-            Utils.showToast('请先选择文件夹', 'warning');
-            return;
+    hasMaskPixels(imageData) {
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i+3] > 0) return true; // Check alpha
         }
+        return false;
+    }
 
-        const skipLowConfidence = document.getElementById('skipLowConfidence').checked;
-
-        try {
-            // Create virtual folder paths
-            const inputFolder = '/tmp/watermark_batch_input';
-            const outputFolder = '/tmp/watermark_batch_output';
-
-            const response = await fetch('/api/watermark/batch-remove', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    input_folder: inputFolder,
-                    output_folder: outputFolder,
-                    skip_low_confidence: skipLowConfidence
-                })
-            });
-
-            const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.message || '启动失败');
+    canvasToBlob(imageOrCanvas) {
+        return new Promise((resolve) => {
+            if (imageOrCanvas instanceof HTMLImageElement) {
+                const c = document.createElement('canvas');
+                c.width = imageOrCanvas.naturalWidth;
+                c.height = imageOrCanvas.naturalHeight;
+                c.getContext('2d').drawImage(imageOrCanvas, 0, 0);
+                c.toBlob(resolve, 'image/png');
+            } else {
+                imageOrCanvas.toBlob(resolve, 'image/png');
             }
-
-            this.taskId = result.task_id;
-            this.pollBatchProgress();
-
-        } catch (error) {
-            Utils.showToast('批量处理启动失败: ' + error.message, 'error');
-        }
+        });
     }
 
-    // Poll Batch Progress
-    async pollBatchProgress() {
-        if (!this.taskId) return;
+    // Convert drawn mask (on display canvas) to full resolution mask blob
+    getMaskBlobForProcessing() {
+        const fullMaskCanvas = document.createElement('canvas');
+        fullMaskCanvas.width = this.originalImage.naturalWidth;
+        fullMaskCanvas.height = this.originalImage.naturalHeight;
+        const ctx = fullMaskCanvas.getContext('2d');
 
-        const poll = async () => {
-            try {
-                const response = await fetch(`/api/watermark/task/${this.taskId}`);
-                const result = await response.json();
+        // Draw the mask from the display canvas onto the full resolution canvas
+        // scaling it up
+        ctx.drawImage(this.maskCanvas, 0, 0, fullMaskCanvas.width, fullMaskCanvas.height);
 
-                if (!result.success) {
-                    throw new Error('获取进度失败');
-                }
+        // Post-process mask: Convert drawn color (yellow) to white (255,255,255) for the backend
+        // Note: The H5 logic checks for yellow pixels and makes them white. 
+        // Our draw logic uses alpha. 
+        // Simpler approach: Draw the mask canvas onto a black background, treating non-transparent pixels as white.
+        
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = fullMaskCanvas.width;
+        finalCanvas.height = fullMaskCanvas.height;
+        const finalCtx = finalCanvas.getContext('2d');
 
-                const task = result.task;
+        // Fill black
+        finalCtx.fillStyle = '#000000';
+        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
-                // Update progress
-                const pct = task.progress.percentage;
-                this.showProgress(
-                    `正在处理: ${task.current_file || '...'}`,
-                    pct,
-                    `成功:${task.progress.successful} 跳过:${task.progress.skipped} 失败:${task.progress.failed}`
-                );
-
-                // Update file list status
-                this.updateFileListStatus(task);
-
-                if (task.status === 'completed' || task.status === 'failed') {
-                    this.hideProgress();
-                    this.showBatchComplete(task);
-                    return;
-                }
-
-                setTimeout(poll, 500);
-
-            } catch (error) {
-                Utils.showToast('获取进度失败: ' + error.message, 'error');
+        // Draw mask in white
+        // We use globalCompositeOperation to ensure we only paint where the mask is
+        
+        // 1. Create a temp canvas with white drawing
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = fullMaskCanvas.width;
+        tempCanvas.height = fullMaskCanvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Draw the scaled mask
+        tempCtx.drawImage(this.maskCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Replace all non-transparent pixels with white
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imageData.data;
+        for(let i=0; i<data.length; i+=4) {
+            if(data[i+3] > 0) { // If alpha > 0
+                data[i] = 255;
+                data[i+1] = 255;
+                data[i+2] = 255;
+                data[i+3] = 255;
             }
-        };
-
-        poll();
-    }
-
-    // Update File List Status
-    updateFileListStatus(task) {
-        // Simplified display, should actually update based on task details
-        const progressText = `${task.progress.processed}/${task.progress.total}`;
-        document.getElementById('watermarkStatus').textContent =
-            `处理中 ${progressText}`;
-    }
-
-    // Show Batch Complete
-    showBatchComplete(task) {
-        Utils.showToast(
-            `批量处理完成! 成功:${task.progress.successful} 失败:${task.progress.failed}`,
-            task.progress.failed > 0 ? 'warning' : 'success'
-        );
-    }
-
-    // Show Result
-    async showResult(result) {
-        const resultDiv = document.getElementById('watermarkResult');
-        resultDiv.style.display = 'block';
-
-        // Original Image
-        if (this.currentFile) {
-            const originalUrl = URL.createObjectURL(this.currentFile);
-            document.getElementById('originalImage').src = originalUrl;
         }
+        tempCtx.putImageData(imageData, 0, 0);
 
-        // Processed Image
-        if (result.output_url) {
-            const processedResponse = await fetch(result.output_url);
-            const processedBlob = await processedResponse.blob();
-            const processedUrl = URL.createObjectURL(processedBlob);
-            document.getElementById('processedImage').src = processedUrl;
-        }
+        // Draw white mask onto black background
+        finalCtx.drawImage(tempCanvas, 0, 0);
 
-        // Result Info
-        const det = result.detection || {};
-        document.getElementById('resultBbox').textContent =
-            det.bbox ? `(${det.bbox.join(', ')})` : '自动检测';
-        document.getElementById('resultConfidence').textContent =
-            det.confidence ? `${(det.confidence * 100).toFixed(1)}%` : '--';
-        document.getElementById('resultTime').textContent =
-            result.processing_time || '--';
-
-        this.hideProgress();
+        return new Promise(resolve => finalCanvas.toBlob(resolve, 'image/png'));
     }
 
-    // Save Result
-    async saveResult() {
-        if (!this.currentFile) return;
-
-        try {
-            // Get processed image
-            const processedImg = document.getElementById('processedImage');
-            if (!processedImg.src) {
-                Utils.showToast('没有可保存的结果', 'warning');
-                return;
-            }
-
-            // Download image
-            const response = await fetch(processedImg.src);
-            const blob = await response.blob();
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-
-            // Add prefix to original filename
-            const originalName = this.currentFile.name;
-            const nameParts = originalName.split('.');
-            const ext = nameParts.pop();
-            const name = nameParts.join('.');
-
-            a.href = url;
-            a.download = `${name}_cleaned.${ext}`;
-            a.click();
-
-            URL.revokeObjectURL(url);
-            Utils.showToast('已保存到下载目录', 'success');
-
-        } catch (error) {
-            Utils.showToast('保存失败: ' + error.message, 'error');
-        }
+    showProgress(text, percent) {
+        document.getElementById('watermarkProgress').style.display = 'block';
+        document.getElementById('watermarkStatus').textContent = text;
+        document.getElementById('watermarkProgressBar').style.width = percent + '%';
     }
 
-    // Show Progress
-    showProgress(status, percentage, detail = '') {
-        const progressDiv = document.getElementById('watermarkProgress');
-        progressDiv.style.display = 'block';
-
-        document.getElementById('watermarkStatus').textContent = status;
-        document.getElementById('watermarkProgressText').textContent = `${percentage}%`;
-        document.getElementById('watermarkProgressBar').style.width = `${percentage}%`;
-        document.getElementById('watermarkProgressDetail').textContent = detail;
-    }
-
-    // Hide Progress
     hideProgress() {
         document.getElementById('watermarkProgress').style.display = 'none';
     }
 
-    // Reset
+    showResult(blob) {
+        this.hideProgress();
+        const url = URL.createObjectURL(blob);
+        
+        // Populate comparison view
+        const compareOriginal = document.getElementById('compareOriginal');
+        if (this.originalImage) {
+            compareOriginal.src = this.originalImage.src;
+        }
+        
+        document.getElementById('processedImage').src = url;
+        
+        // Don't hide the editor, allowing continuous editing if needed
+        // document.getElementById('imageEditor').style.display = 'none'; 
+        
+        document.getElementById('watermarkResult').style.display = 'block';
+        
+        // Scroll to result
+        document.getElementById('watermarkResult').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    saveResult() {
+        const img = document.getElementById('processedImage');
+        const link = document.createElement('a');
+        link.href = img.src;
+        link.download = 'watermark_removed_' + (this.currentFile ? this.currentFile.name : 'image.png');
+        link.click();
+    }
+
     reset() {
         this.currentFile = null;
-        this.detectionResult = null;
-
-        // Reset UI
-        document.getElementById('dropZone').innerHTML = `
-            <i class="fas fa-cloud-upload-alt upload-icon"></i>
-            <p class="upload-text">点击上传或拖拽图片到此处</p>
-            <p class="upload-hint">支持 JPG、PNG、BMP、WEBP 格式</p>
-        `;
+        this.originalImage = null;
+        document.getElementById('watermarkFileInput').value = '';
         
-        // Reset file input
-        const fileInput = document.getElementById('watermarkFileInput');
-        if (fileInput) {
-            fileInput.value = '';
-        }
-
-        document.getElementById('detectionPreview').style.display = 'none';
+        document.getElementById('singleUploadArea').style.display = 'block';
+        document.getElementById('imageEditor').style.display = 'none';
         document.getElementById('watermarkResult').style.display = 'none';
-        document.getElementById('startWatermarkBtn').disabled = true;
-
-        this.hideProgress();
+        
+        this.clearMask();
     }
 }
