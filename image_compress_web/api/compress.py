@@ -10,12 +10,8 @@ from .models import CompressionSettings, TaskStatus
 from .file_ops import get_supported_image_formats
 
 # 导入现有的图片压缩工具模块
-# Assuming this script is running from image_compress_web/api/compress.py
-# We need to go up two levels to reach image_compress_web, then up one more to reach image_compress_tool
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'image_compress_tool'))
-
-from image_compressor import compress_image
-from file_manager import create_backup_name, safe_replace_original
+from compressor.image_compressor import compress_image
+from compressor.file_manager import create_backup_name, safe_replace_original
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
