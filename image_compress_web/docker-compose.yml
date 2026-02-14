@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  image-tools:
+    build: .
+    container_name: image-compress-web
+    ports:
+      - "8000:8000"
+    volumes:
+      # 挂载上传目录和输出目录，方便访问
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./test_output:/app/test_output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    restart: unless-stopped
+    # 资源限制（可选）
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M

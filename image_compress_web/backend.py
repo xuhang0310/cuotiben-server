@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import List, Dict, Any
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -539,6 +539,223 @@ async def get_task_status(task_id: str):
         raise HTTPException(status_code=404, detail="任务不存在")
 
     return tasks_status[task_id]
+
+
+# ==================== 水印检测与去除 API ====================
+
+# 导入水印模块
+from watermark import AutoWatermarkRemover, QuickWatermarkRemover
+
+# 全局去除器实例
+watermark_remover = AutoWatermarkRemover()
+
+class WatermarkBatchRequest(BaseModel):
+    input_folder: str
+    output_folder: str
+    skip_low_confidence: bool = True
+
+
+@app.post("/api/watermark/auto-remove")
+async def watermark_auto_remove(
+    file: UploadFile = File(...),
+    min_confidence: float = Form(0.5),
+    visualize: bool = Form(False)
+):
+    """
+    全自动检测并去除水印
+    """
+    import uuid
+    temp_id = uuid.uuid4().hex[:12]
+    input_path = f"/tmp/watermark_input_{temp_id}.jpg"
+    output_path = f"/tmp/watermark_output_{temp_id}.jpg"
+    vis_path = f"/tmp/watermark_vis_{temp_id}.jpg" if visualize else None
+
+    try:
+        # 保存上传的文件
+        with open(input_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        # 执行去除
+        result = watermark_remover.remove(
+            input_path,
+            output_path,
+            min_confidence=min_confidence,
+            visualize=visualize,
+            visualization_path=vis_path
+        )
+
+        if not result['success']:
+            raise HTTPException(status_code=400, detail=result.get('error', 'Processing failed'))
+
+        response = {
+            "success": True,
+            "detection": result['detection'],
+            "processing_time": result['processing_time'],
+            "output_url": f"/api/watermark/download/{temp_id}"
+        }
+
+        if visualize and vis_path and os.path.exists(vis_path):
+            response["visualization_url"] = f"/api/watermark/visualization/{temp_id}"
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"水印去除错误: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+
+@app.post("/api/watermark/detect-only")
+async def watermark_detect_only(
+    file: UploadFile = File(...),
+    visualize: bool = Form(False)
+):
+    """
+    仅检测水印位置，不执行去除
+    """
+    import uuid
+    temp_id = uuid.uuid4().hex[:12]
+    input_path = f"/tmp/watermark_input_{temp_id}.jpg"
+
+    try:
+        with open(input_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        result = watermark_remover.detect_only(input_path, visualize=visualize)
+
+        response = {
+            "success": result['success'],
+            "detection": result['detection']
+        }
+
+        if visualize and result.get('visualization_path'):
+            response["visualization_url"] = f"/api/watermark/visualization/{temp_id}"
+
+        return response
+
+    except Exception as e:
+        logger.error(f"水印检测错误: {e}")
+        raise HTTPException(status_code=500, detail=f"Detection error: {str(e)}")
+
+
+@app.post("/api/watermark/batch-remove")
+async def watermark_batch_remove(request: WatermarkBatchRequest):
+    """
+    批量去除文件夹中所有图片的水印
+    """
+    if not os.path.exists(request.input_folder):
+        raise HTTPException(status_code=400, detail="Input folder does not exist")
+
+    os.makedirs(request.output_folder, exist_ok=True)
+
+    task = watermark_remover.batch_remove(
+        request.input_folder,
+        request.output_folder,
+        skip_low_confidence=request.skip_low_confidence
+    )
+
+    return {
+        "success": True,
+        "task_id": task.task_id,
+        "message": "Batch processing started"
+    }
+
+
+@app.get("/api/watermark/task/{task_id}")
+async def watermark_get_task(task_id: str):
+    """
+    查询批量处理任务的进度
+    """
+    task = watermark_remover.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return {
+        "success": True,
+        "task": task.to_dict()
+    }
+
+
+@app.post("/api/watermark/quick-remove")
+async def watermark_quick_remove(
+    file: UploadFile = File(...),
+    preset: str = Form("doubao_bottom_right")
+):
+    """
+    使用预设位置快速去除水印（跳过检测）
+    """
+    import uuid
+    temp_id = uuid.uuid4().hex[:12]
+    input_path = f"/tmp/watermark_input_{temp_id}.jpg"
+    output_path = f"/tmp/watermark_output_{temp_id}.jpg"
+
+    try:
+        with open(input_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        quick_remover = QuickWatermarkRemover(preset=preset)
+        success = quick_remover.remove(input_path, output_path)
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Quick removal failed")
+
+        return {
+            "success": True,
+            "output_url": f"/api/watermark/download/{temp_id}",
+            "preset_used": preset
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"快速去除错误: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+
+
+@app.get("/api/watermark/download/{temp_id}")
+async def watermark_download(temp_id: str):
+    """下载处理后的图片"""
+    output_path = f"/tmp/watermark_output_{temp_id}.jpg"
+
+    if not os.path.exists(output_path):
+        raise HTTPException(status_code=404, detail="File not found or expired")
+
+    return FileResponse(
+        output_path,
+        media_type="image/jpeg",
+        filename=f"watermark_removed_{temp_id}.jpg"
+    )
+
+
+@app.get("/api/watermark/visualization/{temp_id}")
+async def watermark_visualization(temp_id: str):
+    """下载检测可视化结果"""
+    vis_path = f"/tmp/watermark_vis_{temp_id}.jpg"
+
+    if not os.path.exists(vis_path):
+        raise HTTPException(status_code=404, detail="Visualization not found")
+
+    return FileResponse(
+        vis_path,
+        media_type="image/jpeg",
+        filename=f"detection_vis_{temp_id}.jpg"
+    )
+
+
+@app.get("/api/watermark/stats")
+async def watermark_stats():
+    """获取处理统计"""
+    stats = watermark_remover.get_stats()
+    return {
+        "success": True,
+        "stats": stats
+    }
+
 
 # 挂载前端静态文件
 frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
