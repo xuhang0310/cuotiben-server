@@ -71,10 +71,22 @@ export class WatermarkModule {
             clearBtn.addEventListener('click', () => this.clearMask());
         }
 
-        // Run Inpainting
+        // Run Inpainting (Manual)
         const runBtn = document.getElementById('runInpaintingBtn');
         if (runBtn) {
             runBtn.addEventListener('click', () => this.runInpainting());
+        }
+
+        // Run Auto Inpainting (Auto)
+        const runAutoBtn = document.getElementById('runAutoInpaintingBtn');
+        if (runAutoBtn) {
+            console.log('Auto Inpainting button found');
+            runAutoBtn.addEventListener('click', () => {
+                console.log('Auto Inpainting button clicked');
+                this.runAutoInpainting();
+            });
+        } else {
+            console.error('Auto Inpainting button NOT found');
         }
 
         // Save Result
@@ -238,6 +250,43 @@ export class WatermarkModule {
         this.ctxMask.clearRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
     }
 
+    getLamaParams(formData) {
+        formData.append('ldmSteps', '25');
+        formData.append('ldmSampler', 'plms');
+        formData.append('zitsWireframe', 'true');
+        formData.append('hdStrategy', 'Crop'); 
+        formData.append('hdStrategyCropMargin', '196');
+        formData.append('hdStrategyCropTrigerSize', '800');
+        formData.append('hdStrategyResizeLimit', '2048');
+        formData.append('prompt', '');
+        formData.append('negativePrompt', '');
+        formData.append('croperX', '1109');
+        formData.append('croperY', '512');
+        formData.append('croperHeight', '512');
+        formData.append('croperWidth', '512');
+        formData.append('useCroper', 'false');
+        formData.append('sdMaskBlur', '5');
+        formData.append('sdStrength', '0.75');
+        formData.append('sdSteps', '50');
+        formData.append('sdGuidanceScale', '7.5');
+        formData.append('sdSampler', 'uni_pc');
+        formData.append('sdSeed', '-1');
+        formData.append('sdMatchHistograms', 'false');
+        formData.append('sdScale', '1');
+        formData.append('cv2Radius', '5');
+        formData.append('cv2Flag', 'INPAINT_NS');
+        formData.append('paintByExampleSteps', '50');
+        formData.append('paintByExampleGuidanceScale', '7.5');
+        formData.append('paintByExampleSeed', '-1');
+        formData.append('paintByExampleMaskBlur', '5');
+        formData.append('paintByExampleMatchHistograms', 'false');
+        formData.append('p2pSteps', '50');
+        formData.append('p2pImageGuidanceScale', '1.5');
+        formData.append('p2pGuidanceScale', '7.5');
+        formData.append('controlnet_conditioning_scale', '0.4');
+        formData.append('controlnet_method', 'control_v11p_sd15_canny');
+    }
+
     async runInpainting() {
         if (!this.originalImage) return;
 
@@ -260,46 +309,11 @@ export class WatermarkModule {
             formData.append('image', imageBlob, 'image.png');
             formData.append('mask', maskBlob, 'mask.png');
             
-            // Add Lama params (matching H5)
-            const model = 'lama'; 
-            formData.append('ldmSteps', '25');
-            formData.append('ldmSampler', 'plms');
-            formData.append('zitsWireframe', 'true');
-            formData.append('hdStrategy', 'Crop'); 
-            formData.append('hdStrategyCropMargin', '196');
-            formData.append('hdStrategyCropTrigerSize', '800');
-            formData.append('hdStrategyResizeLimit', '2048');
-            formData.append('prompt', '');
-            formData.append('negativePrompt', '');
-            formData.append('croperX', '1109');
-            formData.append('croperY', '512');
-            formData.append('croperHeight', '512');
-            formData.append('croperWidth', '512');
-            formData.append('useCroper', 'false');
-            formData.append('sdMaskBlur', '5');
-            formData.append('sdStrength', '0.75');
-            formData.append('sdSteps', '50');
-            formData.append('sdGuidanceScale', '7.5');
-            formData.append('sdSampler', 'uni_pc');
-            formData.append('sdSeed', '-1');
-            formData.append('sdMatchHistograms', 'false');
-            formData.append('sdScale', '1');
-            formData.append('cv2Radius', '5');
-            formData.append('cv2Flag', 'INPAINT_NS');
-            formData.append('paintByExampleSteps', '50');
-            formData.append('paintByExampleGuidanceScale', '7.5');
-            formData.append('paintByExampleSeed', '-1');
-            formData.append('paintByExampleMaskBlur', '5');
-            formData.append('paintByExampleMatchHistograms', 'false');
-            formData.append('p2pSteps', '50');
-            formData.append('p2pImageGuidanceScale', '1.5');
-            formData.append('p2pGuidanceScale', '7.5');
-            formData.append('controlnet_conditioning_scale', '0.4');
-            formData.append('controlnet_method', 'control_v11p_sd15_canny');
+            // Add Lama params
+            this.getLamaParams(formData);
 
             // Send request
-            // Use absolute URL as requested by user
-            const response = await fetch('http://127.0.0.1:8080/inpaint', { 
+            const response = await fetch('/inpaint', { 
                 method: 'POST',
                 body: formData
             });
@@ -313,6 +327,49 @@ export class WatermarkModule {
 
         } catch (error) {
             Utils.showToast('处理失败: ' + error.message, 'error');
+            this.hideProgress();
+        }
+    }
+
+    async runAutoInpainting() {
+        console.log('Starting Auto Inpainting');
+        if (!this.originalImage) {
+            console.warn('No original image loaded');
+            Utils.showToast('请先上传图片', 'warning');
+            return;
+        }
+
+        try {
+            this.showProgress('正在自动检测并去除水印...', 30);
+            
+            // Convert to Blobs
+            const imageBlob = await this.canvasToBlob(this.originalImage);
+            console.log('Image converted to blob');
+
+            // Prepare API call
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'image.png');
+            // Auto mode doesn't need mask
+            
+            // Add Lama params
+            this.getLamaParams(formData);
+
+            // Send request to auto_inpaint endpoint (relative path)
+            console.log('Sending request to /auto_inpaint');
+            const response = await fetch('/auto_inpaint', { 
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Auto Processing failed');
+            }
+
+            const blob = await response.blob();
+            this.showResult(blob);
+
+        } catch (error) {
+            Utils.showToast('自动处理失败: ' + error.message, 'error');
             this.hideProgress();
         }
     }
@@ -351,9 +408,6 @@ export class WatermarkModule {
         ctx.drawImage(this.maskCanvas, 0, 0, fullMaskCanvas.width, fullMaskCanvas.height);
 
         // Post-process mask: Convert drawn color (yellow) to white (255,255,255) for the backend
-        // Note: The H5 logic checks for yellow pixels and makes them white. 
-        // Our draw logic uses alpha. 
-        // Simpler approach: Draw the mask canvas onto a black background, treating non-transparent pixels as white.
         
         const finalCanvas = document.createElement('canvas');
         finalCanvas.width = fullMaskCanvas.width;
@@ -399,50 +453,43 @@ export class WatermarkModule {
         document.getElementById('watermarkProgress').style.display = 'block';
         document.getElementById('watermarkStatus').textContent = text;
         document.getElementById('watermarkProgressBar').style.width = percent + '%';
+        document.getElementById('imageEditor').style.display = 'none';
     }
 
     hideProgress() {
         document.getElementById('watermarkProgress').style.display = 'none';
+        document.getElementById('imageEditor').style.display = 'block';
     }
 
     showResult(blob) {
-        this.hideProgress();
         const url = URL.createObjectURL(blob);
         
-        // Populate comparison view
-        const compareOriginal = document.getElementById('compareOriginal');
-        if (this.originalImage) {
-            compareOriginal.src = this.originalImage.src;
-        }
+        // Hide progress
+        document.getElementById('watermarkProgress').style.display = 'none';
         
-        document.getElementById('processedImage').src = url;
-        
-        // Don't hide the editor, allowing continuous editing if needed
-        // document.getElementById('imageEditor').style.display = 'none'; 
-        
+        // Show result
         document.getElementById('watermarkResult').style.display = 'block';
         
-        // Scroll to result
-        document.getElementById('watermarkResult').scrollIntoView({ behavior: 'smooth' });
-    }
+        // Set images
+        document.getElementById('compareOriginal').src = this.originalImage.src;
+        document.getElementById('processedImage').src = url;
 
-    saveResult() {
-        const img = document.getElementById('processedImage');
-        const link = document.createElement('a');
-        link.href = img.src;
-        link.download = 'watermark_removed_' + (this.currentFile ? this.currentFile.name : 'image.png');
-        link.click();
+        // Update save button
+        const saveBtn = document.getElementById('saveResultBtn');
+        saveBtn.onclick = () => {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'watermark_removed_' + this.currentFile.name;
+            a.click();
+        };
     }
 
     reset() {
         this.currentFile = null;
         this.originalImage = null;
-        document.getElementById('watermarkFileInput').value = '';
-        
-        document.getElementById('singleUploadArea').style.display = 'block';
-        document.getElementById('imageEditor').style.display = 'none';
-        document.getElementById('watermarkResult').style.display = 'none';
-        
         this.clearMask();
+        document.getElementById('watermarkFileInput').value = '';
+        document.getElementById('watermarkResult').style.display = 'none';
+        document.getElementById('singleUploadArea').style.display = 'block';
     }
 }
