@@ -98,7 +98,7 @@ export class WatermarkModule {
         // Reprocess
         const reprocessBtn = document.getElementById('reprocessBtn');
         if (reprocessBtn) {
-            reprocessBtn.addEventListener('click', () => this.clearMask());
+            reprocessBtn.addEventListener('click', () => this.reprocess());
         }
 
         // Next Image
@@ -482,6 +482,18 @@ export class WatermarkModule {
             a.download = 'watermark_removed_' + this.currentFile.name;
             a.click();
         };
+    }
+
+    reprocess() {
+        // Clear the drawn mask
+        this.clearMask();
+        
+        // Hide result and progress panels
+        document.getElementById('watermarkResult').style.display = 'none';
+        document.getElementById('watermarkProgress').style.display = 'none';
+        
+        // Show editor panel again
+        document.getElementById('imageEditor').style.display = 'block';
     }
 
     reset() {
