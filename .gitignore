@@ -10,3 +10,4 @@ app/core/__pycache__
 *.md
 *.md
 /image_compress_web/frontend/h5
+image_compress_web/uv.lock
