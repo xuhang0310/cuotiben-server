@@ -22,9 +22,11 @@ if %errorlevel% neq 0 (
 echo [INFO] Syncing environment...
 "%UV_BIN%" sync --link-mode copy --extra cpu
 
-:: 4. Run application
+:: 4. Run application in background
 echo [INFO] Starting...
 echo ---------------------------------------
-"%UV_BIN%" run python main.py
+start /B cmd /c ""%UV_BIN%" run python main.py > app.log 2>&1"
+echo [INFO] Application running in background
+echo [INFO] Logs: app.log
 
-pause
+timeout /t 2
